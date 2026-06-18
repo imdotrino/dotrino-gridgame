@@ -1,0 +1,735 @@
+{
+  "_meta": {
+    "source": "kenney_roguelike-rpg-pack",
+    "sheet": "public/tiles.png",
+    "cols": 57,
+    "rows": 31,
+    "tile": 16,
+    "stride": 17,
+    "categories": ["ground", "terrain_edge", "prop", "item", "actor", "food", "weapon", "armor", "decoration", "structure", "furniture", "nature", "effect", "ui", "empty"]
+  },
+  "tiles": {
+    "0,0":  "terrain_edge:water_snow_nw",
+    "1,0":  "terrain_edge:water_snow_n",
+    "2,0":  "terrain_edge:pond_water_top_left",
+    "3,0":  "terrain_edge:pond_water_top",
+    "4,0":  "terrain_edge:pond_water_top_right",
+    "5,0":  "ground:grass",
+    "6,0":  "ground:dirt",
+    "7,0":  "ground:gravel",
+    "8,0":  "ground:sand",
+    "9,0":  "ground:stone_tile_light",
+    "10,0": "decoration:awning_red_white_left",
+    "11,0": "decoration:awning_green_white_left",
+
+    "0,1":  "terrain_edge:water_snow_w",
+    "1,1":  "terrain_edge:water_snow_center_crack",
+    "2,1":  "terrain_edge:pond_water_left",
+    "3,1":  "ground:water",
+    "4,1":  "terrain_edge:pond_water_right",
+    "5,1":  "ground:grass_alt",
+    "6,1":  "ground:dirt_alt",
+    "7,1":  "ground:gravel_alt",
+    "8,1":  "ground:sand_alt",
+    "9,1":  "ground:grass_cobble",
+    "10,1": "decoration:awning_red_white_center",
+    "11,1": "decoration:awning_green_white_center",
+
+    "2,2":  "terrain_edge:pond_water_bottom_left",
+    "3,2":  "terrain_edge:pond_water_bottom",
+    "4,2":  "terrain_edge:pond_water_bottom_right",
+    "5,2":  "ground:cobble_gray",
+    "6,2":  "ground:cobble_gray_alt",
+    "7,2":  "ground:cobble_gray_alt2",
+    "8,2":  "ground:brick_brown",
+    "9,2":  "ground:brick_brown_alt",
+    "10,2": "decoration:flag_red_white",
+    "11,2": "decoration:flag_green_white",
+
+    "1,3":  "terrain_edge:water_snow_dot",
+    "5,3":  "ground:cobble_gray_alt3",
+    "6,3":  "ground:cobble_gray_alt4",
+    "7,3":  "ground:cobble_light",
+    "8,3":  "ground:brick_brown_alt2",
+    "9,3":  "ground:brick_brown_alt3",
+
+    "0,4":  "decoration:water_decor_vertical",
+    "1,4":  "terrain_edge:water_snow_center",
+    "3,4":  "terrain_edge:pool_water_top",
+    "4,4":  "terrain_edge:pool_water_top_right",
+    "5,4":  "ground:cobble_gray_alt5",
+    "6,4":  "ground:cobble_gray_alt6",
+    "7,4":  "ground:brick_brown_alt4",
+    "8,4":  "ground:brick_brown_alt5",
+    "9,4":  "ground:brick_brown_alt6",
+    "10,4": "furniture:shelf_bread",
+    "11,4": "furniture:shelf_potion_green",
+
+    "2,5":  "terrain_edge:pool_water_bottom_left",
+    "3,5":  "terrain_edge:pool_water_bottom",
+    "4,5":  "terrain_edge:pool_water_bottom_right",
+    "5,5":  "ground:cobble_gray_alt7",
+    "6,5":  "ground:cobble_gray_alt8",
+    "7,5":  "ground:brick_brown_alt7",
+    "8,5":  "ground:brick_brown_alt8",
+    "9,5":  "ground:brick_brown_alt9",
+    "10,5": "furniture:shelf_bread_alt",
+    "11,5": "furniture:shelf_potion_alt",
+
+    "0,6":  "nature:grass_flowers_orange_a",
+    "1,6":  "nature:grass_flowers_orange_b",
+    "2,6":  "nature:grass_flowers_orange_c",
+    "3,6":  "nature:grass_flowers_orange_d",
+    "4,6":  "nature:grass_flowers_orange_e",
+    "10,6": "furniture:shelf_food_tray",
+
+    "0,7":  "nature:grass_flowers_mixed_a",
+    "1,7":  "nature:grass_flowers_mixed_b",
+    "2,7":  "nature:grass_flowers_mixed_c",
+    "3,7":  "nature:grass_flowers_mixed_d",
+    "4,7":  "nature:grass_flowers_mixed_e",
+    "5,7":  "terrain_edge:dirt_patch_nw",
+    "6,7":  "terrain_edge:dirt_patch_n",
+    "7,7":  "terrain_edge:dirt_patch_n_alt",
+    "8,7":  "terrain_edge:dirt_patch_ne",
+    "9,7":  "terrain_edge:dirt_patch_n_alt2",
+    "10,7": "furniture:shelf_sleeping_cat",
+
+    "12,0": "structure:forge_off",
+    "13,0": "structure:forge_lit",
+    "14,0": "structure:forge_anvil",
+    "15,0": "prop:anvil",
+    "17,0": "furniture:bench",
+    "18,0": "furniture:bench",
+    "19,0": "prop:signpost",
+    "20,0": "prop:signpost",
+    "21,0": "prop:signpost",
+    "22,0": "prop:barrel_small",
+    "23,0": "prop:barrel",
+
+    "12,1": "furniture:bunk_bed",
+    "13,1": "furniture:bunk_bed",
+    "14,1": "furniture:bunk_bed",
+    "15,1": "furniture:bunk_bed",
+    "16,1": "furniture:bunk_bed",
+    "17,1": "furniture:bunk_bed",
+    "19,1": "furniture:cabinet_gray",
+    "20,1": "furniture:cabinet_gray",
+    "21,1": "furniture:cabinet_gray",
+    "22,1": "furniture:cabinet_gray",
+    "23,1": "furniture:cabinet_wood",
+
+    "12,2": "item:book_green",
+    "13,2": "item:book_green",
+    "14,2": "furniture:bunk_bed",
+    "15,2": "furniture:bunk_bed",
+    "16,2": "furniture:bunk_bed",
+    "17,2": "furniture:bunk_bed",
+    "18,2": "furniture:bed_post",
+    "19,2": "furniture:drawer",
+    "20,2": "furniture:drawer",
+    "21,2": "furniture:drawer",
+    "22,2": "furniture:desk",
+    "23,2": "furniture:desk",
+
+    "12,3": "item:book_green",
+    "13,3": "item:book_beige",
+    "14,3": "furniture:bunk_bed",
+    "15,3": "furniture:bunk_bed",
+    "16,3": "furniture:bunk_bed",
+    "17,3": "furniture:bunk_bed",
+    "18,3": "furniture:bed_post",
+    "19,3": "furniture:drawer",
+    "20,3": "furniture:drawer",
+    "21,3": "furniture:drawer",
+    "22,3": "furniture:desk",
+    "23,3": "furniture:mirror_large",
+
+    "12,4": "food:tray_green",
+    "13,4": "food:tray_yellow",
+    "14,4": "furniture:bunk_bed",
+    "15,4": "furniture:bunk_bed",
+    "16,4": "furniture:bunk_bed",
+    "17,4": "furniture:bunk_bed",
+    "18,4": "furniture:bed_post",
+    "19,4": "furniture:drawer",
+    "20,4": "furniture:drawer",
+    "21,4": "furniture:drawer",
+    "22,4": "furniture:drawer",
+    "23,4": "furniture:cabinet_wood",
+
+    "12,5": "furniture:shelf_bottle",
+    "13,5": "furniture:shelf_food",
+    "14,5": "nature:bush_brown",
+    "15,5": "nature:bush_silver",
+    "16,5": "nature:bush_brown",
+    "17,5": "nature:bush_silver",
+    "18,5": "furniture:bench",
+    "19,5": "furniture:chair",
+    "20,5": "furniture:chair",
+    "21,5": "furniture:chair",
+    "22,5": "furniture:drawer",
+    "23,5": "furniture:drawer",
+
+    "12,6": "furniture:shelf",
+    "13,6": "furniture:shelf_flowers",
+    "14,6": "prop:crate_vegetables",
+    "15,6": "prop:crate_hay",
+    "16,6": "prop:crate_vegetables",
+    "17,6": "prop:crate_food",
+    "18,6": "furniture:stool",
+    "19,6": "furniture:bench_long",
+    "20,6": "furniture:bench_long",
+    "21,6": "furniture:bench_long",
+    "22,6": "furniture:dresser",
+    "23,6": "furniture:dresser",
+
+    "12,7": "terrain_edge:pond_water",
+    "13,7": "furniture:shelf",
+    "14,7": "food:loaf",
+    "15,7": "prop:crate_wood",
+    "16,7": "prop:torch_unlit",
+    "17,7": "prop:torch_lit",
+    "18,7": "prop:torch_lit",
+    "19,7": "weapon:sword",
+    "20,7": "weapon:sword",
+    "21,7": "weapon:sword",
+    "22,7": "weapon:sword",
+    "23,7": "furniture:mirror_tall",
+
+    "24,0": "prop:barrel", "25,0": "prop:barrel", "26,0": "prop:barrel", "27,0": "prop:barrel",
+    "28,0": "furniture:cabinet_gray", "29,0": "furniture:cabinet_gray", "30,0": "furniture:cabinet_gray_shelves", "31,0": "furniture:cabinet_gray_potion",
+    "32,0": "furniture:cabinet_wood", "33,0": "furniture:cabinet_wood", "34,0": "furniture:cabinet_wood_open", "35,0": "furniture:cabinet_wood_open",
+
+    "24,1": "furniture:drawer", "25,1": "furniture:drawer", "26,1": "furniture:drawer", "27,1": "furniture:drawer",
+    "28,1": "furniture:cabinet_gray", "29,1": "furniture:cabinet_gray", "30,1": "furniture:cabinet_gray", "31,1": "furniture:cabinet_gray",
+    "32,1": "furniture:cabinet_wood", "33,1": "furniture:cabinet_wood", "34,1": "furniture:cabinet_wood", "35,1": "furniture:cabinet_wood",
+
+    "24,2": "furniture:cabinet_wood_narrow", "25,2": "prop:sack", "26,2": "prop:sack", "27,2": "prop:sack",
+    "28,2": "furniture:cabinet_gray_open", "29,2": "furniture:cabinet_gray_open", "30,2": "furniture:cabinet_gray_mushroom", "31,2": "furniture:cabinet_pottery",
+    "32,2": "furniture:cabinet_gray", "33,2": "furniture:cabinet_gray", "34,2": "furniture:cabinet_gray", "35,2": "furniture:cabinet_gray",
+
+    "24,3": "furniture:dresser_gray", "25,3": "furniture:dresser_gray", "26,3": "furniture:plank", "27,3": "furniture:plank",
+    "28,3": "structure:door_wood", "29,3": "furniture:mirror_arch", "30,3": "furniture:mirror_arch",
+    "31,3": "prop:cauldron", "32,3": "prop:cauldron", "33,3": "structure:bars", "34,3": "structure:bars", "35,3": "structure:bars",
+
+    "24,4": "furniture:plank", "25,4": "furniture:plank", "26,4": "furniture:plank", "27,4": "furniture:plank",
+    "28,4": "structure:door_wood", "29,4": "furniture:mirror_arch", "30,4": "furniture:mirror_arch",
+    "31,4": "prop:cauldron_hanging", "32,4": "prop:cauldron", "33,4": "structure:black_block", "34,4": "structure:black_block", "35,4": "structure:bars",
+
+    "24,5": "furniture:drawer_small", "25,5": "furniture:drawer", "26,5": "furniture:cabinet_wood", "27,5": "furniture:plank",
+    "28,5": "structure:door_arch", "29,5": "structure:door_arch", "30,5": "structure:door_arch", "31,5": "structure:door_arch",
+    "32,5": "structure:door_light", "33,5": "structure:door_light", "34,5": "structure:door_light", "35,5": "structure:door_light",
+
+    "24,6": "furniture:drawer", "25,6": "furniture:cabinet_wood", "26,6": "furniture:cabinet_wood", "27,6": "furniture:plank",
+    "28,6": "structure:door_dark", "29,6": "structure:door_dark", "30,6": "structure:door_dark", "31,6": "structure:door_dark",
+    "32,6": "structure:door_light", "33,6": "structure:door_light", "34,6": "structure:door_light", "35,6": "structure:door_light",
+
+    "24,7": "furniture:mirror", "25,7": "furniture:mirror_arch", "26,7": "prop:safe",
+    "28,7": "structure:door_handle", "29,7": "structure:door_handle", "30,7": "structure:door_handle", "31,7": "structure:door_handle",
+    "32,7": "structure:door_dark", "33,7": "structure:door_dark", "34,7": "structure:door_dark", "35,7": "structure:door_dark",
+
+    "36,0": "structure:door_wood", "37,0": "structure:door_dark", "38,0": "prop:chest", "39,0": "prop:chest",
+    "40,0": "structure:window_arch", "41,0": "structure:window_arch", "42,0": "structure:window_arch", "43,0": "structure:window_arch",
+    "44,0": "structure:window_round", "45,0": "structure:window_round", "46,0": "structure:window_round", "47,0": "structure:window_round",
+
+    "36,1": "structure:door_dark", "37,1": "structure:door_arch_dark", "38,1": "prop:chest", "39,1": "prop:chest_ornate",
+    "40,1": "structure:window_shutter", "41,1": "structure:window_shutter", "42,1": "structure:window_shutter", "43,1": "structure:window_shutter",
+    "44,1": "structure:window", "45,1": "structure:window", "46,1": "structure:window", "47,1": "structure:window",
+
+    "36,2": "structure:door_dark", "37,2": "structure:door_dark", "38,2": "prop:chest", "39,2": "prop:chest",
+    "40,2": "structure:window_bars", "41,2": "structure:window_bars", "42,2": "structure:window_bars", "43,2": "structure:window_bars",
+    "44,2": "structure:window_orange", "45,2": "structure:window_orange", "46,2": "structure:window_orange", "47,2": "structure:window_teal",
+
+    "36,3": "structure:door_teal", "37,3": "structure:door_wood", "38,3": "prop:safe", "39,3": "prop:safe",
+    "40,3": "structure:bars", "41,3": "structure:bars",
+    "43,3": "structure:window_arch", "44,3": "structure:window_dark", "45,3": "structure:window_dark", "46,3": "structure:window_dark", "47,3": "structure:window_dark",
+
+    "36,4": "structure:door_teal", "37,4": "structure:door_wood",
+    "40,4": "structure:window_wood", "41,4": "structure:window_wood", "42,4": "structure:window_teal", "43,4": "structure:window_teal",
+    "44,4": "structure:window_wood", "45,4": "structure:window_wood", "46,4": "structure:window_wood", "47,4": "structure:window_wood",
+
+    "36,5": "furniture:locker", "37,5": "furniture:locker",
+    "40,5": "structure:window_teal", "41,5": "structure:window_teal", "42,5": "structure:window_teal", "43,5": "structure:window_teal",
+    "44,5": "structure:window_wood", "45,5": "structure:window_wood", "46,5": "structure:window_wood", "47,5": "structure:window_wood",
+
+    "36,6": "furniture:locker", "37,6": "furniture:locker", "38,6": "structure:door_narrow", "39,6": "structure:door_narrow",
+    "40,6": "structure:window_orange", "41,6": "structure:window_orange", "42,6": "structure:window_orange", "43,6": "structure:window_orange",
+    "44,6": "structure:window_wood", "45,6": "structure:window_wood", "46,6": "structure:window_wood", "47,6": "structure:window_wood",
+
+    "36,7": "furniture:locker", "37,7": "furniture:locker", "38,7": "structure:door_narrow", "39,7": "structure:door_narrow",
+    "40,7": "structure:double_door_white", "41,7": "structure:double_door_white", "42,7": "structure:double_door_white", "43,7": "structure:double_door_white",
+    "44,7": "structure:double_door_wood", "45,7": "structure:double_door_wood", "46,7": "structure:double_door_wood", "47,7": "structure:double_door_wood",
+
+    "48,0": "structure:double_door_wood", "49,0": "decoration:banner_orange", "50,0": "decoration:banner_orange_cross", "51,0": "decoration:flag_orange", "52,0": "decoration:flag_orange",
+    "54,0": "decoration:curtain_teal", "55,0": "decoration:curtain_green", "56,0": "decoration:curtain_teal",
+
+    "48,1": "structure:window_silver", "49,1": "decoration:banner_orange", "50,1": "decoration:banner_orange_cross", "51,1": "decoration:flag_orange", "52,1": "decoration:flag_orange",
+
+    "48,2": "nature:mushroom_brown", "49,2": "decoration:banner_orange", "50,2": "decoration:banner_orange", "51,2": "decoration:scroll", "52,2": "decoration:scroll",
+    "54,2": "decoration:curtain_teal", "55,2": "decoration:curtain_green", "56,2": "decoration:curtain_teal",
+
+    "48,3": "nature:mushroom_brown", "49,3": "decoration:banner_teal", "50,3": "decoration:banner_teal_cross", "51,3": "decoration:flag_teal", "52,3": "decoration:flag_teal",
+    "54,3": "decoration:curtain_orange", "55,3": "decoration:curtain_green", "56,3": "decoration:curtain_teal",
+
+    "48,4": "nature:mushroom_brown", "49,4": "decoration:banner_teal", "50,4": "decoration:banner_teal_cross", "51,4": "decoration:flag_teal", "52,4": "decoration:flag_teal",
+    "54,4": "decoration:curtain_orange", "55,4": "decoration:curtain_green", "56,4": "decoration:curtain_teal",
+
+    "48,5": "nature:mushroom_brown", "49,5": "decoration:banner_teal", "50,5": "decoration:banner_teal", "51,5": "decoration:banner_teal", "52,5": "decoration:banner_teal",
+    "54,5": "decoration:curtain_orange", "55,5": "decoration:curtain_green", "56,5": "decoration:curtain_teal",
+
+    "48,6": "nature:mushroom_brown", "49,6": "decoration:banner_green", "50,6": "decoration:banner_green_cross", "51,6": "decoration:flag_green", "52,6": "decoration:flag_green",
+    "54,6": "structure:fireplace_lit", "55,6": "structure:fireplace_lit",
+
+    "48,7": "nature:mushroom_brown", "49,7": "decoration:banner_green", "50,7": "decoration:banner_green_cross", "51,7": "decoration:flag_green", "52,7": "decoration:flag_green",
+    "54,7": "structure:fireplace_lit", "55,7": "structure:fireplace_dark",
+
+    "2,8": "nature:flowers_orange", "3,8": "nature:flowers_orange", "4,8": "nature:flowers_orange",
+    "5,8": "terrain_edge:dirt_patch", "6,8": "terrain_edge:dirt_patch", "7,8": "terrain_edge:dirt_patch", "8,8": "terrain_edge:dirt_patch", "9,8": "terrain_edge:dirt_patch",
+    "10,8": "ground:floor_water", "11,8": "ground:floor_water",
+
+    "0,9": "nature:flowers_white", "1,9": "nature:flowers_white", "2,9": "nature:flowers_white", "3,9": "nature:flowers_white", "4,9": "nature:flowers_white",
+    "5,9": "terrain_edge:dirt_patch", "6,9": "terrain_edge:dirt_patch", "7,9": "terrain_edge:dirt_patch", "8,9": "terrain_edge:dirt_patch", "9,9": "terrain_edge:dirt_patch",
+    "10,9": "ground:floor_water", "11,9": "ground:floor_water",
+
+    "0,10": "nature:flowers_white", "1,10": "nature:flowers_white", "2,10": "nature:flowers_white", "3,10": "nature:flowers_white", "4,10": "nature:flowers_white",
+    "5,10": "terrain_edge:dirt_patch", "6,10": "terrain_edge:dirt_patch", "7,10": "terrain_edge:dirt_patch", "8,10": "terrain_edge:dirt_patch", "9,10": "terrain_edge:dirt_patch",
+    "10,10": "ground:floor_green", "11,10": "ground:floor_green",
+
+    "2,11": "nature:flowers_white", "3,11": "nature:flowers_white", "4,11": "nature:flowers_white",
+    "5,11": "terrain_edge:dirt_patch", "6,11": "terrain_edge:dirt_patch", "7,11": "terrain_edge:dirt_patch", "8,11": "terrain_edge:dirt_patch", "9,11": "terrain_edge:dirt_patch",
+    "10,11": "ground:floor_green", "11,11": "ground:floor_green",
+
+    "0,12": "nature:flowers_blue", "1,12": "nature:flowers_blue", "2,12": "nature:flowers_blue", "3,12": "nature:flowers_blue", "4,12": "nature:flowers_blue",
+    "5,12": "terrain_edge:dirt_patch", "6,12": "terrain_edge:dirt_patch", "8,12": "terrain_edge:dirt_patch",
+    "10,12": "ground:floor_green", "11,12": "ground:floor_green",
+
+    "0,13": "nature:flowers_blue", "1,13": "nature:flowers_blue", "2,13": "nature:flowers_blue", "3,13": "nature:flowers_blue", "4,13": "nature:flowers_blue",
+    "5,13": "terrain_edge:stone_patch", "6,13": "terrain_edge:stone_patch", "7,13": "terrain_edge:stone_patch", "8,13": "terrain_edge:stone_patch", "9,13": "terrain_edge:stone_patch",
+    "10,13": "ground:floor_orange", "11,13": "ground:floor_orange",
+
+    "2,14": "nature:flowers_blue", "3,14": "nature:flowers_blue", "4,14": "nature:flowers_blue",
+    "5,14": "terrain_edge:stone_patch", "6,14": "terrain_edge:stone_patch", "7,14": "terrain_edge:stone_patch", "8,14": "terrain_edge:stone_patch", "9,14": "terrain_edge:stone_patch",
+    "10,14": "ground:floor_orange", "11,14": "ground:floor_orange",
+
+    "0,15": "ground:grass", "1,15": "ground:grass", "3,15": "ground:floor_green", "4,15": "ground:floor_green",
+    "5,15": "terrain_edge:stone_patch", "6,15": "terrain_edge:stone_patch", "7,15": "terrain_edge:stone_patch", "8,15": "terrain_edge:stone_patch", "9,15": "terrain_edge:stone_patch",
+    "10,15": "ground:floor_orange", "11,15": "ground:floor_orange",
+
+    "12,8": "ground:floor_water", "13,8": "prop:firewood", "14,8": "prop:bonfire_small", "15,8": "prop:bonfire",
+    "16,8": "prop:torch_unlit", "17,8": "prop:torch_lit", "18,8": "prop:torch_lit",
+    "19,8": "prop:candelabra", "20,8": "prop:candelabra", "21,8": "prop:candelabra", "22,8": "prop:candelabra",
+    "23,8": "furniture:mirror",
+
+    "12,9": "ground:floor_water", "13,9": "nature:tree_green", "14,9": "nature:tree_orange", "15,9": "nature:tree_teal",
+    "16,9": "nature:pine_green", "17,9": "nature:pine_orange", "18,9": "nature:pine_green",
+    "19,9": "nature:bush_green", "20,9": "nature:bush_orange", "21,9": "nature:bush_green",
+    "22,9": "nature:cactus", "23,9": "nature:tree_berries",
+
+    "12,10": "ground:floor_water", "13,10": "nature:tree_green", "14,10": "nature:tree_orange", "15,10": "nature:tree_teal",
+    "16,10": "nature:pine_green", "17,10": "nature:pine_orange", "18,10": "nature:pine_green",
+    "19,10": "nature:hedge", "20,10": "nature:hedge", "21,10": "nature:hedge",
+    "22,10": "nature:bush_small", "23,10": "nature:tree_berries",
+
+    "12,11": "ground:floor_water", "13,11": "nature:tree_green", "14,11": "nature:tree_orange", "15,11": "nature:tree_green",
+    "16,11": "nature:pine_green", "17,11": "nature:pine_orange", "18,11": "nature:pine_green",
+    "19,11": "nature:hedge", "20,11": "nature:hedge", "21,11": "nature:hedge",
+    "22,11": "nature:bush_small", "23,11": "nature:tree_berries",
+
+    "12,12": "ground:floor_water", "13,12": "ground:floor_tan", "14,12": "ground:floor_tan", "15,12": "ground:floor_tan",
+    "16,12": "ground:floor_tan", "17,12": "ground:floor_tan", "18,12": "ground:floor_tan",
+    "19,12": "ground:floor_gray", "20,12": "ground:floor_gray", "21,12": "ground:floor_gray", "22,12": "ground:floor_gray", "23,12": "ground:floor_gray",
+
+    "12,13": "ground:floor_green", "13,13": "ground:floor_tan", "14,13": "ground:floor_tan", "15,13": "ground:floor_tan",
+    "16,13": "ground:floor_tan", "17,13": "ground:floor_tan", "18,13": "ground:floor_tan",
+    "19,13": "ground:floor_gray", "20,13": "ground:floor_gray", "21,13": "ground:floor_gray", "22,13": "ground:floor_gray", "23,13": "ground:floor_gray",
+
+    "12,14": "ground:floor_orange", "13,14": "ground:floor_tan", "14,14": "ground:floor_tan", "15,14": "ground:floor_tan",
+    "16,14": "ground:floor_tan", "17,14": "ground:floor_tan", "18,14": "ground:floor_tan",
+    "19,14": "ground:floor_gray", "20,14": "ground:floor_gray", "21,14": "ground:floor_gray", "22,14": "ground:floor_gray", "23,14": "ground:floor_gray",
+
+    "12,15": "ground:floor_orange", "13,15": "ground:floor_tan", "14,15": "ground:floor_tan", "15,15": "ground:floor_tan",
+    "16,15": "ground:floor_tan", "17,15": "ground:floor_tan", "18,15": "ground:floor_tan",
+    "19,15": "ground:floor_gray", "20,15": "ground:floor_gray", "21,15": "ground:floor_gray", "22,15": "ground:floor_gray", "23,15": "ground:floor_gray",
+
+    "24,8": "furniture:mirror_round", "25,8": "furniture:mirror_tall", "26,8": "prop:cuckoo_clock",
+    "28,8": "furniture:chalkboard", "29,8": "furniture:chalkboard", "30,8": "furniture:chalkboard", "31,8": "furniture:chalkboard",
+    "32,8": "furniture:chalkboard", "33,8": "furniture:chalkboard", "34,8": "furniture:chalkboard", "35,8": "furniture:chalkboard",
+
+    "24,9": "nature:bush_green", "25,9": "nature:bush_green", "26,9": "nature:cactus", "27,9": "nature:tree_dead",
+    "29,9": "item:gem_teal", "30,9": "item:gem_orange", "31,9": "item:gem_purple", "32,9": "item:gem_white",
+    "33,9": "item:gems_pile", "34,9": "item:gem_blue", "35,9": "item:gem_yellow",
+
+    "24,10": "nature:bush_green", "25,10": "nature:bush_flower_yellow", "26,10": "nature:bush_flower_orange", "27,10": "nature:tree_dead",
+    "28,10": "nature:bush_small", "29,10": "decoration:portrait_green", "30,10": "decoration:portrait_orange", "31,10": "decoration:portrait_teal",
+    "32,10": "structure:door_silver", "33,10": "structure:door_silver", "34,10": "structure:door_wood", "35,10": "structure:door_wood",
+
+    "24,11": "nature:bush_green", "25,11": "nature:bush_flowers", "26,11": "nature:bush_green", "27,11": "nature:tree_dead",
+    "28,11": "nature:leaves", "29,11": "decoration:portrait_green_oval", "30,11": "decoration:portrait_orange_oval", "31,11": "decoration:portrait_teal_oval",
+    "32,11": "structure:door_silver", "33,11": "structure:door_silver", "34,11": "structure:door_wood", "35,11": "structure:door_wood",
+
+    "24,12": "ground:floor_white", "25,12": "ground:floor_white", "26,12": "ground:floor_white", "27,12": "ground:floor_white",
+    "28,12": "ground:floor_white", "29,12": "ground:floor_white", "30,12": "ground:floor_white", "31,12": "ground:floor_white",
+    "32,12": "ground:floor_white", "33,12": "ground:floor_white", "34,12": "ground:floor_wood", "35,12": "ground:floor_wood",
+
+    "24,13": "ground:floor_white", "25,13": "ground:floor_white", "26,13": "ground:floor_white", "27,13": "ground:floor_white",
+    "28,13": "ground:floor_white", "29,13": "ground:floor_white", "30,13": "ground:floor_white", "31,13": "ground:floor_white",
+    "32,13": "ground:floor_white", "33,13": "ground:floor_white", "34,13": "ground:floor_wood", "35,13": "ground:floor_wood",
+
+    "24,14": "ground:floor_white", "25,14": "ground:floor_white", "26,14": "ground:floor_white", "27,14": "ground:floor_white",
+    "28,14": "ground:floor_white", "29,14": "ground:floor_white", "30,14": "ground:floor_white", "31,14": "ground:floor_white",
+    "32,14": "ground:floor_white", "33,14": "ground:floor_white", "34,14": "ground:floor_wood", "35,14": "ground:floor_wood",
+
+    "24,15": "ground:floor_white", "25,15": "ground:floor_white", "26,15": "ground:floor_white", "27,15": "ground:floor_white",
+    "28,15": "ground:floor_white", "29,15": "ground:floor_white", "30,15": "ground:floor_white", "31,15": "ground:floor_white",
+    "32,15": "ground:floor_white", "33,15": "ground:floor_white", "34,15": "ground:floor_wood", "35,15": "ground:floor_wood",
+
+    "37,8": "furniture:bunk_bed", "38,8": "furniture:bunk_bed", "39,8": "furniture:bunk_bed",
+    "40,8": "structure:window_arch", "41,8": "structure:window_arch", "42,8": "structure:window_arch", "43,8": "structure:window_arch",
+    "44,8": "structure:window_cross", "45,8": "structure:window_long", "46,8": "structure:window_arch", "47,8": "structure:window_arch",
+
+    "36,9": "prop:pebble", "37,9": "prop:chest_silver", "38,9": "prop:chest_silver", "39,9": "prop:chest_silver",
+    "40,9": "structure:window_arch", "41,9": "structure:window_arch", "42,9": "structure:window_arch", "43,9": "structure:window_cross",
+    "44,9": "structure:window_cross", "45,9": "structure:window_long", "46,9": "structure:window", "47,9": "structure:window",
+
+    "36,10": "structure:door_narrow", "37,10": "prop:chest_with_bag", "38,10": "prop:chest_silver", "39,10": "prop:chest_silver",
+    "40,10": "prop:sack_brown", "41,10": "prop:sack_silver", "42,10": "prop:sack_gold",
+    "43,10": "item:silver_pile", "44,10": "item:gold_pile",
+    "45,10": "structure:tent_green", "46,10": "structure:tent_green",
+
+    "36,11": "structure:door_wood", "37,11": "prop:chest_silver", "38,11": "prop:chest_silver", "39,11": "prop:chest_silver",
+    "40,11": "item:gold_pile", "41,11": "item:gold_pile_large", "42,11": "item:gold_pile_huge",
+    "43,11": "item:silver_coin", "44,11": "item:gold_coin",
+    "45,11": "structure:tent_green", "47,11": "structure:tent_green",
+
+    "36,12": "structure:door_wood", "37,12": "structure:door_wood", "38,12": "structure:door_wood", "39,12": "structure:door_wood", "40,12": "structure:door_wood",
+    "41,12": "furniture:bookshelf_empty", "42,12": "furniture:bookshelf_empty",
+    "43,12": "furniture:bookshelf", "44,12": "furniture:bookshelf", "45,12": "furniture:bookshelf", "46,12": "furniture:bookshelf", "47,12": "furniture:bookshelf",
+
+    "36,13": "structure:door_wood", "37,13": "structure:door_wood", "38,13": "structure:door_wood", "39,13": "structure:door_wood", "40,13": "structure:door_wood",
+    "41,13": "furniture:bookshelf_empty", "42,13": "furniture:bookshelf_empty",
+    "43,13": "furniture:bookshelf", "44,13": "furniture:bookshelf", "45,13": "furniture:bookshelf", "46,13": "furniture:bookshelf", "47,13": "furniture:bookshelf",
+
+    "36,14": "structure:door_wood", "37,14": "structure:door_wood", "38,14": "structure:door_wood", "39,14": "structure:door_wood", "40,14": "structure:door_wood",
+    "41,14": "furniture:bookshelf_empty", "42,14": "furniture:bookshelf_empty",
+    "43,14": "furniture:bookshelf", "44,14": "furniture:bookshelf", "45,14": "furniture:bookshelf", "46,14": "furniture:bookshelf", "47,14": "furniture:bookshelf",
+
+    "36,15": "structure:door_wood", "37,15": "structure:door_wood", "38,15": "structure:door_wood", "39,15": "structure:door_wood", "40,15": "structure:door_wood",
+    "41,15": "item:scroll", "42,15": "item:scroll", "43,15": "item:scroll", "44,15": "item:scroll_sealed",
+    "45,15": "item:potion_blue", "46,15": "item:book_red", "47,15": "item:book_cross",
+
+    "48,8": "structure:window_silver", "49,8": "decoration:banner_green", "50,8": "decoration:banner_green_cross",
+    "51,8": "decoration:banner_green", "52,8": "decoration:banner_green",
+    "54,8": "structure:fireplace_lit", "55,8": "structure:fireplace_lit",
+
+    "48,9": "structure:window_silver", "49,9": "decoration:skull", "50,9": "decoration:gem_mount_blue",
+    "51,9": "prop:tombstone", "52,9": "prop:tombstone", "53,9": "prop:grave_cross_wood",
+    "54,9": "structure:fireplace_dark", "55,9": "structure:fireplace_dark",
+
+    "48,10": "structure:tent_tan", "49,10": "structure:house_ruined",
+    "50,10": "prop:grave_cross", "51,10": "prop:grave_cross", "52,10": "prop:grave_cross",
+    "54,10": "structure:fireplace_lit", "55,10": "structure:fireplace_lit",
+
+    "48,11": "structure:tent_tan", "49,11": "structure:tent_collapsed",
+    "50,11": "prop:tombstone", "51,11": "prop:tombstone", "52,11": "prop:tombstone",
+    "54,11": "item:potion_blue", "55,11": "item:potion_red", "56,11": "item:potion_yellow",
+
+    "48,12": "furniture:bookshelf", "49,12": "furniture:bookshelf", "50,12": "furniture:bookshelf",
+    "51,12": "structure:clothesline", "52,12": "structure:clothesline", "53,12": "structure:door_wood",
+    "54,12": "item:potion_teal", "55,12": "item:potion_purple", "56,12": "food:chicken_raw",
+
+    "48,13": "furniture:bookshelf", "49,13": "furniture:bookshelf", "50,13": "furniture:bookshelf",
+    "51,13": "structure:clothesline_full", "52,13": "structure:clothesline_full", "53,13": "structure:door_wood",
+    "54,13": "food:bowl", "55,13": "food:plate_meat", "56,13": "food:plate_veggies",
+
+    "48,14": "furniture:bookshelf", "49,14": "furniture:bookshelf", "50,14": "furniture:bookshelf",
+    "51,14": "structure:lattice", "52,14": "structure:lattice", "53,14": "structure:door_wood",
+    "54,14": "item:potion_green", "55,14": "item:cup_white", "56,14": "item:cup_brown",
+
+    "48,15": "item:book_green", "49,15": "item:book_teal", "50,15": "item:book_tan", "51,15": "item:book_open",
+    "52,15": "item:book_blue", "53,15": "food:bread",
+    "54,15": "food:chicken_cooked", "56,15": "item:cup_brown",
+
+    "0,16": "ground:grass_dotted", "1,16": "ground:grass_dotted", "2,16": "terrain_edge:grass_patch", "3,16": "terrain_edge:grass_patch", "4,16": "terrain_edge:grass_patch",
+    "5,16": "terrain_edge:stone_patch", "6,16": "terrain_edge:stone_patch", "7,16": "terrain_edge:stone_patch", "8,16": "terrain_edge:stone_patch", "9,16": "terrain_edge:stone_patch",
+    "10,16": "ground:floor_green", "11,16": "ground:floor_green",
+
+    "2,17": "terrain_edge:grass_patch", "3,17": "terrain_edge:grass_patch", "4,17": "terrain_edge:grass_patch",
+    "5,17": "terrain_edge:stone_patch", "6,17": "terrain_edge:stone_patch", "7,17": "terrain_edge:stone_patch", "8,17": "terrain_edge:stone_patch", "9,17": "terrain_edge:stone_patch",
+    "10,17": "ground:floor_green", "11,17": "ground:floor_green",
+
+    "0,18": "ground:floor_red", "1,18": "ground:floor_red", "2,18": "terrain_edge:red_patch", "3,18": "terrain_edge:red_patch", "4,18": "terrain_edge:red_patch",
+    "5,18": "terrain_edge:stone_patch", "6,18": "terrain_edge:stone_patch", "7,18": "terrain_edge:stone_patch", "8,18": "terrain_edge:stone_patch",
+    "10,18": "ground:floor_red", "11,18": "ground:floor_red",
+
+    "0,19": "ground:floor_red", "1,19": "ground:floor_red", "2,19": "terrain_edge:red_patch", "3,19": "terrain_edge:red_patch", "4,19": "terrain_edge:red_patch",
+    "5,19": "terrain_edge:sand_patch", "6,19": "terrain_edge:sand_patch", "7,19": "terrain_edge:sand_patch", "8,19": "terrain_edge:sand_patch",
+    "10,19": "ground:floor_orange", "11,19": "ground:floor_orange",
+
+    "2,20": "terrain_edge:red_patch", "3,20": "terrain_edge:red_patch", "4,20": "terrain_edge:red_patch",
+    "5,20": "terrain_edge:sand_patch", "6,20": "terrain_edge:sand_patch", "7,20": "terrain_edge:sand_patch", "8,20": "terrain_edge:sand_patch",
+    "10,20": "ground:floor_orange", "11,20": "ground:floor_orange",
+
+    "0,21": "ground:floor_pink", "1,21": "ground:floor_pink", "2,21": "terrain_edge:pink_patch", "3,21": "terrain_edge:pink_patch", "4,21": "terrain_edge:pink_patch",
+    "5,21": "terrain_edge:sand_patch", "6,21": "terrain_edge:sand_patch", "7,21": "terrain_edge:sand_patch", "8,21": "terrain_edge:sand_patch",
+    "10,21": "ground:floor_orange", "11,21": "ground:floor_orange",
+
+    "0,22": "ground:floor_pink", "1,22": "ground:floor_pink", "2,22": "terrain_edge:pink_patch", "3,22": "terrain_edge:pink_patch", "4,22": "terrain_edge:pink_patch",
+    "5,22": "terrain_edge:sand_patch", "6,22": "terrain_edge:sand_patch", "7,22": "terrain_edge:sand_patch", "8,22": "terrain_edge:sand_patch",
+    "10,22": "ground:floor_teal", "11,22": "ground:floor_teal",
+
+    "2,23": "terrain_edge:pink_patch", "3,23": "terrain_edge:pink_patch", "4,23": "terrain_edge:pink_patch",
+    "5,23": "terrain_edge:sand_patch", "6,23": "terrain_edge:sand_patch", "7,23": "terrain_edge:sand_patch", "8,23": "terrain_edge:sand_patch",
+    "10,23": "ground:floor_teal", "11,23": "ground:floor_teal",
+
+    "13,16": "structure:wall_tan", "14,16": "structure:wall_tan", "15,16": "structure:wall_tan", "16,16": "structure:wall_tan", "17,16": "structure:wall_tan", "18,16": "structure:wall_tan", "19,16": "structure:wall_tan",
+    "20,16": "structure:wall_gray", "21,16": "structure:wall_gray", "22,16": "structure:wall_gray", "23,16": "structure:wall_gray",
+
+    "12,17": "ground:floor_teal", "13,17": "structure:wall_tan", "14,17": "structure:wall_tan", "15,17": "structure:wall_tan", "16,17": "structure:wall_tan", "17,17": "structure:wall_tan_door", "18,17": "structure:wall_tan", "19,17": "structure:wall_tan",
+    "20,17": "structure:wall_gray", "21,17": "structure:wall_gray", "22,17": "structure:wall_gray", "23,17": "structure:wall_gray",
+
+    "12,18": "ground:floor_teal", "13,18": "structure:wall_tan", "14,18": "structure:wall_tan", "15,18": "structure:wall_tan", "16,18": "structure:wall_tan", "17,18": "structure:wall_tan", "18,18": "structure:wall_tan", "19,18": "structure:wall_tan",
+    "20,18": "structure:wall_gray", "21,18": "structure:wall_gray", "22,18": "structure:wall_gray", "23,18": "structure:wall_gray",
+
+    "13,19": "structure:wall_tan", "14,19": "structure:wall_tan", "15,19": "structure:wall_tan_cracked", "16,19": "structure:wall_tan_cracked", "17,19": "structure:wall_tan_cracked", "18,19": "structure:wall_tan_cracked", "19,19": "structure:wall_tan_cracked",
+    "20,19": "structure:wall_gray", "21,19": "structure:wall_gray", "22,19": "structure:wall_gray_cracked", "23,19": "structure:wall_gray",
+
+    "12,20": "ground:floor_orange", "13,20": "structure:wall_tan", "14,20": "structure:wall_tan", "15,20": "structure:wall_tan_cracked", "16,20": "structure:wall_tan_cracked", "17,20": "structure:wall_tan_cracked", "18,20": "structure:wall_tan_cracked", "19,20": "structure:wall_tan_cracked",
+    "20,20": "structure:wall_gray", "21,20": "structure:wall_gray", "22,20": "structure:wall_gray", "23,20": "structure:wall_gray_cracked",
+
+    "12,21": "ground:floor_orange", "13,21": "structure:roof_tan", "14,21": "structure:roof_tan", "15,21": "structure:roof_tan", "16,21": "structure:roof_tan", "17,21": "structure:roof_tan", "18,21": "structure:roof_tan", "19,21": "structure:roof_tan",
+    "20,21": "structure:roof_brown", "21,21": "structure:roof_brown", "22,21": "structure:roof_brown", "23,21": "structure:roof_brown",
+
+    "12,22": "ground:floor_teal", "13,22": "structure:roof_tan", "14,22": "structure:roof_tan", "15,22": "structure:roof_tan", "16,22": "structure:roof_tan", "17,22": "structure:roof_tan", "18,22": "structure:roof_tan", "19,22": "structure:roof_tan",
+    "20,22": "structure:roof_brown", "21,22": "structure:roof_brown", "22,22": "structure:roof_brown", "23,22": "structure:roof_brown",
+
+    "12,23": "ground:floor_teal", "13,23": "structure:roof_tan", "14,23": "structure:roof_tan", "15,23": "structure:roof_tan", "16,23": "structure:roof_tan", "17,23": "structure:roof_tan", "18,23": "structure:roof_tan", "19,23": "structure:roof_tan",
+    "20,23": "structure:roof_brown", "21,23": "structure:roof_brown", "22,23": "structure:roof_brown", "23,23": "structure:roof_brown",
+
+    "24,16": "structure:wall_gray", "25,16": "structure:wall_gray", "26,16": "structure:wall_gray", "27,16": "structure:wall_gray", "28,16": "structure:wall_gray", "29,16": "structure:wall_gray", "30,16": "structure:wall_gray", "31,16": "structure:wall_gray", "32,16": "structure:wall_gray", "33,16": "structure:wall_gray", "34,16": "structure:wall_tan", "35,16": "structure:wall_tan",
+
+    "24,17": "structure:wall_gray", "25,17": "structure:wall_gray", "26,17": "structure:wall_gray", "27,17": "structure:wall_gray", "28,17": "structure:wall_gray", "29,17": "structure:wall_gray", "30,17": "structure:wall_gray", "31,17": "structure:wall_gray", "32,17": "structure:wall_gray", "33,17": "structure:wall_gray", "34,17": "structure:wall_tan", "35,17": "structure:wall_tan",
+
+    "24,18": "structure:wall_gray", "25,18": "structure:wall_gray", "26,18": "structure:wall_gray", "27,18": "structure:wall_gray", "28,18": "structure:wall_gray", "29,18": "structure:wall_gray", "30,18": "structure:wall_gray", "31,18": "structure:wall_gray", "32,18": "structure:wall_gray", "33,18": "structure:wall_gray", "34,18": "structure:wall_tan", "35,18": "structure:wall_tan",
+
+    "24,19": "structure:wall_gray_cracked", "25,19": "structure:wall_gray_cracked", "26,19": "structure:wall_gray_cracked", "27,19": "structure:wall_gray_cracked", "28,19": "structure:wall_gray_cracked", "29,19": "structure:wall_gray_cracked", "30,19": "structure:wall_gray_cracked", "31,19": "structure:wall_gray_cracked", "32,19": "structure:wall_gray_cracked", "33,19": "structure:wall_gray_cracked", "34,19": "structure:wall_tan_cracked", "35,19": "structure:wall_tan_cracked",
+
+    "24,20": "structure:wall_gray_cracked", "25,20": "structure:wall_gray_cracked", "26,20": "structure:wall_gray_cracked", "27,20": "structure:wall_gray_cracked", "28,20": "structure:wall_gray_cracked", "29,20": "structure:wall_gray_cracked", "30,20": "structure:wall_gray_cracked", "31,20": "structure:wall_gray_cracked", "32,20": "structure:wall_gray_cracked", "33,20": "structure:wall_gray_cracked", "34,20": "structure:wall_tan", "35,20": "structure:wall_tan",
+
+    "24,21": "structure:wall_tan", "25,21": "structure:wall_tan", "26,21": "structure:wall_tan", "27,21": "structure:roof_gray", "28,21": "structure:roof_gray", "29,21": "structure:roof_gray", "30,21": "structure:roof_gray", "31,21": "structure:roof_gray", "32,21": "structure:roof_gray", "33,21": "structure:roof_gray", "34,21": "structure:roof_tan", "35,21": "structure:roof_tan",
+
+    "24,22": "structure:wall_tan", "25,22": "structure:wall_tan", "26,22": "structure:wall_tan", "27,22": "structure:roof_gray", "28,22": "structure:roof_gray", "29,22": "structure:roof_gray", "30,22": "structure:roof_gray", "31,22": "structure:roof_gray", "32,22": "structure:roof_gray", "33,22": "structure:roof_gray", "34,22": "structure:roof_tan", "35,22": "structure:roof_tan",
+
+    "24,23": "structure:wall_tan", "25,23": "structure:wall_tan", "26,23": "structure:wall_tan", "27,23": "structure:roof_gray", "28,23": "structure:roof_gray", "29,23": "structure:roof_gray", "30,23": "structure:roof_gray", "31,23": "structure:roof_gray", "32,23": "structure:roof_gray", "33,23": "structure:roof_gray", "34,23": "structure:roof_tan", "35,23": "structure:roof_tan",
+
+    "36,16": "structure:wall_brown", "37,16": "structure:wall_brown", "38,16": "structure:wall_brown", "39,16": "structure:wall_brown", "40,16": "structure:wall_brown",
+    "41,16": "weapon:hammer", "42,16": "weapon:pickaxe", "43,16": "weapon:hammer_alt",
+    "44,16": "decoration:frame_gray", "45,16": "decoration:frame_brown", "46,16": "decoration:frame_white", "47,16": "decoration:frame_gray",
+
+    "36,17": "structure:wall_brown", "37,17": "structure:wall_brown_arch", "38,17": "structure:wall_brown_arch", "39,17": "structure:wall_brown", "40,17": "structure:wall_brown",
+    "41,17": "weapon:hammer", "42,17": "weapon:pickaxe", "43,17": "weapon:hammer_alt",
+    "44,17": "decoration:frame_gray", "45,17": "decoration:frame_brown", "46,17": "decoration:frame_white", "47,17": "decoration:frame_gray",
+
+    "36,18": "structure:wall_brown", "37,18": "structure:wall_brown", "38,18": "structure:wall_brown", "39,18": "structure:wall_brown", "40,18": "structure:wall_brown",
+    "41,18": "structure:scaffold_x", "43,18": "structure:scaffold", "44,18": "structure:scaffold", "45,18": "structure:scaffold", "46,18": "structure:scaffold", "47,18": "structure:scaffold",
+
+    "36,19": "structure:wall_brown_decor", "37,19": "structure:wall_brown_decor", "38,19": "structure:wall_brown_decor", "39,19": "structure:wall_brown_decor", "40,19": "structure:wall_brown_decor",
+    "41,19": "structure:scaffold_x", "42,19": "structure:scaffold", "43,19": "structure:scaffold", "44,19": "structure:scaffold", "45,19": "structure:scaffold", "46,19": "structure:scaffold", "47,19": "structure:scaffold",
+
+    "36,20": "structure:wall_brown_decor", "37,20": "structure:wall_brown_decor", "38,20": "structure:wall_brown_decor", "39,20": "structure:wall_brown_decor", "40,20": "structure:wall_brown_decor",
+    "41,20": "structure:scaffold", "42,20": "structure:scaffold", "43,20": "structure:scaffold", "45,20": "structure:scaffold", "46,20": "structure:scaffold", "47,20": "structure:scaffold",
+
+    "38,21": "structure:wall_brown", "39,21": "structure:wall_brown", "40,21": "structure:wall_brown",
+    "41,21": "structure:scaffold", "42,21": "structure:scaffold", "43,21": "structure:scaffold", "45,21": "structure:scaffold", "46,21": "structure:scaffold", "47,21": "structure:scaffold",
+
+    "36,22": "structure:roof_brown", "37,22": "structure:roof_brown", "38,22": "structure:wall_brown", "39,22": "structure:wall_brown", "40,22": "structure:wall_brown",
+    "41,22": "structure:fence_wood", "42,22": "structure:fence_wood", "43,22": "structure:fence_wood",
+
+    "36,23": "structure:roof_brown", "37,23": "structure:roof_brown", "38,23": "structure:wall_brown", "39,23": "structure:wall_brown", "40,23": "structure:wall_brown",
+    "41,23": "nature:leaves_purple", "42,23": "nature:leaves_yellow", "43,23": "nature:leaves_orange", "44,23": "nature:leaves_green",
+    "45,23": "structure:fence_wood", "46,23": "structure:fence_wood", "47,23": "structure:fence_wood",
+
+    "48,16": "prop:chest_silver", "49,16": "prop:chest_silver", "50,16": "prop:chest_silver",
+    "51,16": "actor:character_hooded", "52,16": "actor:character_hooded", "53,16": "prop:torch_bamboo",
+    "54,16": "food:bowl_herbs", "55,16": "food:plate_white", "56,16": "food:bowl_brown",
+
+    "48,17": "prop:crate_wood", "49,17": "prop:crate_wood", "50,17": "prop:crate_wood",
+    "51,17": "actor:character_dark", "52,17": "actor:character_dark", "53,17": "prop:torch_bamboo",
+    "54,17": "item:cup_white", "55,17": "food:plate_green", "56,17": "food:bowl_yellow",
+
+    "48,18": "structure:scaffold", "49,18": "prop:crate_wood", "50,18": "prop:crate_silver", "51,18": "prop:crate_wood", "52,18": "prop:crate_silver",
+    "53,18": "prop:sack_big", "54,18": "nature:rock_pile_brown", "55,18": "nature:rock_pile_brown", "56,18": "nature:rock_pile_brown",
+
+    "48,19": "structure:scaffold", "49,19": "prop:crate_wood", "50,19": "prop:crate_silver", "51,19": "prop:crate_wood", "52,19": "prop:crate_silver",
+    "53,19": "prop:sack_big", "54,19": "nature:rock_pile_brown", "55,19": "nature:rock_green", "56,19": "nature:rock_green",
+
+    "48,20": "structure:scaffold", "49,20": "prop:crate_silver", "50,20": "prop:crate_silver", "51,20": "prop:crate_silver", "52,20": "prop:crate_silver",
+    "53,20": "prop:sack_big_dark", "54,20": "nature:rock_pile_gray", "55,20": "nature:rock_green", "56,20": "nature:rock_green",
+
+    "48,21": "structure:scaffold", "49,21": "prop:crate_gold", "50,21": "prop:crate_gold", "51,21": "prop:crate_gold", "52,21": "prop:crate_gold",
+    "53,21": "structure:roof_stone", "54,21": "nature:rock_pile_gray", "55,21": "nature:rock_pile_gray", "56,21": "nature:rock_pile_gray",
+
+    "49,22": "prop:crate_dark", "50,22": "prop:crate_dark", "51,22": "prop:crate_dark", "52,22": "prop:crate_dark",
+    "53,22": "prop:sack_wood", "54,22": "nature:rock_green", "55,22": "nature:rock_green", "56,22": "nature:rock_green",
+
+    "48,23": "structure:fence_wood", "49,23": "structure:fence_wood", "50,23": "structure:fence_wood", "51,23": "structure:fence_wood",
+    "53,23": "structure:fence_wood",
+    "54,23": "terrain_edge:water_rock", "55,23": "terrain_edge:water_rock", "56,23": "terrain_edge:water_rock",
+
+    "4,24": "decoration:bread_chunk", "5,24": "decoration:bread_chunk", "6,24": "decoration:bread_chunk", "7,24": "decoration:bread_chunk",
+    "10,24": "ground:floor_water", "11,24": "ground:floor_water",
+
+    "0,25": "ground:cube_brown", "1,25": "ground:cube_brown", "2,25": "ground:cube_brown",
+    "3,25": "ground:cube_gray", "4,25": "ground:cube_gray", "5,25": "ground:cube_gray",
+    "6,25": "ground:cube_sand", "7,25": "ground:cube_sand", "8,25": "ground:cube_sand",
+    "9,25": "ground:cube_green", "10,25": "ground:cube_green", "11,25": "ground:cube_green",
+
+    "0,26": "ground:cube_brown", "1,26": "ground:cube_brown", "2,26": "ground:cube_brown",
+    "3,26": "ground:cube_gray", "4,26": "ground:cube_gray", "5,26": "ground:cube_gray",
+    "6,26": "ground:cube_sand", "7,26": "ground:cube_sand", "8,26": "ground:cube_sand",
+    "9,26": "ground:cube_green", "10,26": "ground:cube_green", "11,26": "ground:cube_green",
+
+    "0,27": "ground:cube_brown", "1,27": "ground:cube_brown", "2,27": "ground:cube_brown",
+    "3,27": "ground:cube_gray", "4,27": "ground:cube_gray", "5,27": "ground:cube_gray",
+    "6,27": "ground:cube_sand", "7,27": "ground:cube_sand", "8,27": "ground:cube_sand",
+    "9,27": "ground:cube_green", "10,27": "ground:cube_green", "11,27": "ground:cube_green",
+
+    "0,28": "ground:cube_brown", "1,28": "ground:cube_brown", "2,28": "ground:cube_brown",
+    "3,28": "ground:cube_gray", "4,28": "ground:cube_gray", "5,28": "ground:cube_gray",
+    "6,28": "ground:cube_sand", "7,28": "ground:cube_sand", "8,28": "ground:cube_sand",
+    "9,28": "ground:cube_green", "10,28": "ground:cube_green", "11,28": "ground:cube_green",
+
+    "0,29": "ground:cube_brown", "1,29": "ground:cube_brown", "2,29": "ground:cube_brown",
+    "3,29": "ground:cube_gray", "4,29": "ground:cube_gray", "5,29": "ground:cube_gray",
+    "6,29": "ground:cube_sand", "7,29": "ground:cube_sand", "8,29": "ground:cube_sand",
+    "9,29": "ground:cube_green", "10,29": "ground:cube_green", "11,29": "ground:cube_green",
+
+    "0,30": "ground:cube_brown", "1,30": "ground:cube_brown", "2,30": "ground:cube_brown",
+    "3,30": "ground:cube_gray", "4,30": "ground:cube_gray", "5,30": "ground:cube_gray",
+    "6,30": "ground:cube_sand", "7,30": "ground:cube_sand", "8,30": "ground:cube_sand",
+    "9,30": "ground:cube_green", "10,30": "ground:cube_green", "11,30": "ground:cube_green",
+
+    "12,24": "decoration:roof_top", "14,24": "decoration:roof_top", "15,24": "decoration:roof_top", "16,24": "decoration:roof_top", "17,24": "decoration:roof_top",
+    "21,24": "decoration:roof_top", "22,24": "decoration:roof_top", "23,24": "decoration:roof_top",
+
+    "12,25": "ground:cube_orange", "13,25": "ground:cube_orange", "14,25": "ground:cube_orange",
+    "15,25": "ground:cube_teal", "16,25": "ground:cube_teal", "17,25": "ground:cube_teal",
+    "18,25": "ground:cube_green", "19,25": "ground:cube_green", "20,25": "ground:cube_green",
+    "21,25": "ui:pill_green", "22,25": "ui:pill_green", "23,25": "ui:pill_green",
+
+    "12,26": "ground:cube_orange", "13,26": "ground:cube_orange", "14,26": "ground:cube_orange",
+    "15,26": "ground:cube_teal", "16,26": "ground:cube_teal", "17,26": "ground:cube_teal",
+    "18,26": "ground:cube_orange", "19,26": "ground:cube_orange", "20,26": "ground:cube_orange",
+    "21,26": "ui:pill_green", "22,26": "ui:pill_green", "23,26": "ui:pill_green",
+
+    "12,27": "ground:cube_orange", "13,27": "ground:cube_orange", "14,27": "ground:cube_orange",
+    "15,27": "ground:cube_teal", "16,27": "ground:cube_teal", "17,27": "ground:cube_teal",
+    "18,27": "ground:cube_teal", "19,27": "ground:cube_teal", "20,27": "ground:cube_teal",
+    "21,27": "ui:pill_teal", "22,27": "ui:pill_teal", "23,27": "ui:pill_teal",
+
+    "12,28": "ground:cube_orange", "13,28": "ground:cube_orange", "14,28": "ground:cube_orange",
+    "15,28": "ground:cube_teal", "16,28": "ground:cube_teal", "17,28": "ground:cube_teal",
+    "18,28": "ground:cube_green", "19,28": "ground:cube_green", "20,28": "ground:cube_green",
+    "21,28": "ui:pill_green", "22,28": "ui:pill_green", "23,28": "ui:pill_green",
+
+    "12,29": "ground:cube_orange", "13,29": "ground:cube_orange", "14,29": "ground:cube_orange",
+    "15,29": "ground:cube_teal", "16,29": "ground:cube_teal", "17,29": "ground:cube_teal",
+    "18,29": "ground:cube_orange", "19,29": "ground:cube_orange", "20,29": "ground:cube_orange",
+    "21,29": "ui:pill_orange", "22,29": "ui:pill_orange", "23,29": "ui:pill_orange",
+
+    "12,30": "ground:cube_orange", "13,30": "ground:cube_orange", "14,30": "ground:cube_orange",
+    "15,30": "ground:cube_teal", "16,30": "ground:cube_teal", "17,30": "ground:cube_teal",
+    "18,30": "ground:cube_teal", "19,30": "ground:cube_teal", "20,30": "ground:cube_teal",
+    "21,30": "ui:pill_white", "22,30": "ui:pill_white", "23,30": "ui:pill_white",
+
+    "24,24": "decoration:roof_top", "28,24": "decoration:roof_top", "29,24": "decoration:roof_top", "30,24": "decoration:roof_top", "31,24": "decoration:roof_top", "34,24": "decoration:roof_top", "35,24": "decoration:roof_top",
+
+    "24,25": "ground:brick_brown", "25,25": "ground:brick_brown", "26,25": "ground:brick_brown",
+    "27,25": "ground:brick_brown_alt", "28,25": "ground:brick_brown_alt", "29,25": "ground:brick_brown_alt",
+    "30,25": "ui:pill_green", "31,25": "ui:pill_green", "32,25": "ui:pill_green", "33,25": "ui:pill_green", "34,25": "ui:pill_green",
+    "35,25": "ui:pill_v_green",
+
+    "24,26": "ground:brick_gray", "25,26": "ground:brick_gray", "26,26": "ground:brick_gray",
+    "27,26": "ground:brick_gray_alt", "28,26": "ground:brick_gray_alt", "29,26": "ground:brick_gray_alt",
+    "30,26": "ui:pill_white_outline", "31,26": "ui:pill_white_outline", "32,26": "ui:pill_white_outline", "33,26": "ui:pill_white_outline", "34,26": "ui:pill_white_outline",
+    "35,26": "ui:pill_v_green",
+
+    "24,27": "ground:brick_tan", "25,27": "ground:brick_tan", "26,27": "ground:brick_tan",
+    "27,27": "ground:brick_tan_alt", "28,27": "ground:brick_tan_alt", "29,27": "ground:brick_tan_alt",
+    "30,27": "ui:pill_teal", "31,27": "ui:pill_teal", "32,27": "ui:pill_teal", "33,27": "ui:pill_teal", "34,27": "ui:pill_teal",
+    "35,27": "ui:pill_v_green",
+
+    "24,28": "ground:brick_brown_alt", "25,28": "ground:brick_brown_alt", "26,28": "ground:brick_brown_alt",
+    "27,28": "ground:brick_tan", "28,28": "ground:brick_tan", "29,28": "ground:brick_tan",
+    "30,28": "ui:pill_white_outline", "31,28": "ui:pill_white_outline", "32,28": "ui:pill_white_outline", "33,28": "ui:pill_white_outline", "34,28": "ui:pill_white_outline",
+
+    "24,29": "ground:brick_gray", "25,29": "ground:brick_gray", "26,29": "ground:brick_gray",
+    "27,29": "ground:brick_tan", "28,29": "ground:brick_tan", "29,29": "ground:brick_tan",
+    "30,29": "ui:pill_orange", "31,29": "ui:pill_orange", "32,29": "ui:pill_orange", "33,29": "ui:pill_orange", "34,29": "ui:pill_orange",
+
+    "24,30": "ground:brick_tan", "25,30": "ground:brick_tan", "26,30": "ground:brick_tan",
+    "27,30": "ground:brick_tan", "28,30": "ground:brick_tan", "29,30": "ground:brick_tan",
+    "30,30": "ui:pill_white_outline", "31,30": "ui:pill_white_outline", "32,30": "ui:pill_white_outline", "33,30": "ui:pill_white_outline", "34,30": "ui:pill_white_outline",
+
+    "36,24": "decoration:roof_top", "37,24": "decoration:roof_top", "38,24": "decoration:roof_top",
+    "40,24": "nature:leaves_purple", "41,24": "nature:leaves_yellow", "42,24": "nature:leaves_orange", "43,24": "nature:leaves_green",
+    "44,24": "structure:fence_wood", "45,24": "structure:fence_wood", "46,24": "structure:fence_wood",
+
+    "36,25": "ui:pill_v_green", "37,25": "ui:pill_v_teal", "38,25": "ui:pill_v_teal", "39,25": "ui:pill_v_orange", "40,25": "ui:pill_v_orange",
+    "41,25": "ground:cube_brown_alt", "42,25": "ground:cube_brown_alt", "43,25": "ground:cube_brown_alt",
+    "44,25": "ground:cube_white", "45,25": "ground:cube_white", "46,25": "ground:cube_white", "47,25": "ground:cube_sand_alt",
+
+    "36,26": "ui:pill_v_green", "37,26": "ui:pill_v_teal", "38,26": "ui:pill_v_teal", "39,26": "ui:pill_v_orange", "40,26": "ui:pill_v_orange",
+    "41,26": "ground:cube_brown_alt", "42,26": "ground:cube_brown_alt", "43,26": "ground:cube_brown_alt",
+    "44,26": "ground:cube_white", "45,26": "ground:cube_white", "46,26": "ground:cube_white", "47,26": "ground:cube_sand_alt",
+
+    "36,27": "ui:pill_v_white", "37,27": "ui:pill_v_teal", "38,27": "ui:pill_v_white", "39,27": "ui:pill_v_orange", "40,27": "ui:pill_v_white",
+    "41,27": "ground:cube_brown_alt", "42,27": "ground:cube_brown_alt", "43,27": "ground:cube_brown_alt",
+    "44,27": "ground:cube_white", "45,27": "ground:cube_white", "46,27": "ground:cube_white", "47,27": "ground:cube_sand_alt",
+
+    "36,28": "ui:pill_v_white", "37,28": "ui:pill_v_teal", "38,28": "ui:pill_v_white", "39,28": "ui:pill_v_orange", "40,28": "ui:pill_v_white",
+    "41,28": "ground:cube_green", "42,28": "ground:cube_green", "43,28": "ground:cube_green",
+    "44,28": "ground:cube_orange", "45,28": "ground:cube_orange", "46,28": "ground:cube_orange", "47,28": "ground:cube_teal",
+
+    "37,29": "ui:pill_v_teal", "39,29": "ui:pill_v_orange",
+    "41,29": "ground:cube_green", "42,29": "ground:cube_green", "43,29": "ground:cube_green",
+    "44,29": "ground:cube_orange", "45,29": "ground:cube_orange", "46,29": "ground:cube_orange", "47,29": "ground:cube_teal",
+
+    "37,30": "ui:pill_v_white", "39,30": "ui:pill_v_white",
+    "41,30": "ground:cube_green", "42,30": "ground:cube_green", "43,30": "ground:cube_green",
+    "44,30": "ground:cube_orange", "45,30": "ground:cube_orange", "46,30": "ground:cube_orange", "47,30": "ground:cube_teal",
+
+    "48,24": "structure:fence_wood", "49,24": "structure:fence_wood", "50,24": "structure:fence_wood", "51,24": "structure:fence_wood", "52,24": "structure:fence_wood", "53,24": "structure:fence_wood",
+    "54,24": "terrain_edge:water_rock", "55,24": "terrain_edge:water_rock", "56,24": "terrain_edge:water_rock",
+
+    "48,25": "ground:cube_sand_alt", "49,25": "ground:cube_sand_alt",
+    "50,25": "ui:arrow_brown_left", "51,25": "ui:arrow_brown_right",
+    "52,25": "ui:arrow_gray_left", "53,25": "ui:arrow_gray_right",
+    "54,25": "ui:arrow_sand_left", "55,25": "ui:arrow_sand_right",
+
+    "48,26": "ground:cube_sand_alt", "49,26": "ground:cube_sand_alt",
+    "50,26": "ui:arrow_brown_left", "51,26": "ui:arrow_brown_right",
+    "52,26": "ui:arrow_gray_left", "53,26": "ui:arrow_gray_right",
+    "54,26": "ui:arrow_sand_left", "55,26": "ui:arrow_sand_right",
+
+    "48,27": "ground:cube_sand_alt", "49,27": "ground:cube_sand_alt",
+    "50,27": "ui:button_brown", "51,27": "ui:button_brown",
+    "52,27": "ui:button_gray", "53,27": "ui:button_gray",
+    "54,27": "ui:button_sand", "55,27": "ui:button_sand",
+
+    "48,28": "ground:cube_teal", "49,28": "ground:cube_teal",
+    "50,28": "ui:arrow_green_left", "51,28": "ui:arrow_green_right",
+    "52,28": "ui:arrow_orange_left", "53,28": "ui:arrow_orange_right",
+    "54,28": "ui:arrow_teal_left", "55,28": "ui:arrow_teal_right",
+
+    "48,29": "ground:cube_teal", "49,29": "ground:cube_teal",
+    "50,29": "ui:arrow_green_left", "51,29": "ui:arrow_green_right",
+    "52,29": "ui:arrow_orange_left", "53,29": "ui:arrow_orange_right",
+    "54,29": "ui:arrow_teal_left", "55,29": "ui:arrow_teal_right",
+
+    "48,30": "ground:cube_teal", "49,30": "ground:cube_teal",
+    "50,30": "ui:button_green", "51,30": "ui:button_green",
+    "52,30": "ui:button_orange", "53,30": "ui:button_orange",
+    "54,30": "ui:button_teal", "55,30": "ui:button_teal"
+  }
+}

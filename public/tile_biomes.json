@@ -1,0 +1,292 @@
+{
+  "biomes": [
+    {
+      "id": "Water",
+      "color": "#2a6fdb",
+      "compat": [],
+      "kind": "water"
+    },
+    {
+      "id": "Flowers",
+      "color": "#c0392b",
+      "compat": [],
+      "kind": "normal"
+    },
+    {
+      "id": "Pool",
+      "color": "#2a6fdb",
+      "compat": [],
+      "kind": "water"
+    }
+  ],
+  "tileBiome": {
+    "2,0": {
+      "biome": "Water",
+      "pos": "NW"
+    },
+    "3,0": {
+      "biome": "Water",
+      "pos": "N"
+    },
+    "4,0": {
+      "biome": "Water",
+      "pos": "NE"
+    },
+    "2,1": {
+      "biome": "Water",
+      "pos": "W"
+    },
+    "3,1": {
+      "biome": "Water",
+      "pos": "C"
+    },
+    "4,1": {
+      "biome": "Water",
+      "pos": "E"
+    },
+    "2,2": {
+      "biome": "Water",
+      "pos": "SW"
+    },
+    "3,2": {
+      "biome": "Water",
+      "pos": "S"
+    },
+    "4,2": {
+      "biome": "Water",
+      "pos": "SE"
+    },
+    "0,0": {
+      "biome": "Water",
+      "pos": "C"
+    },
+    "1,0": {
+      "biome": "Water",
+      "pos": "C"
+    },
+    "2,6": {
+      "biome": "Flowers",
+      "pos": "NW"
+    },
+    "3,6": {
+      "biome": "Flowers",
+      "pos": "N"
+    },
+    "4,6": {
+      "biome": "Flowers",
+      "pos": "NE"
+    },
+    "2,7": {
+      "biome": "Flowers",
+      "pos": "W"
+    },
+    "3,7": {
+      "biome": "Flowers",
+      "pos": "C"
+    },
+    "4,7": {
+      "biome": "Flowers",
+      "pos": "E"
+    },
+    "2,8": {
+      "biome": "Flowers",
+      "pos": "SW"
+    },
+    "3,8": {
+      "biome": "Flowers",
+      "pos": "S"
+    },
+    "4,8": {
+      "biome": "Flowers",
+      "pos": "SE"
+    },
+    "2,9": {
+      "biome": "Flowers",
+      "pos": "NW"
+    },
+    "3,9": {
+      "biome": "Flowers",
+      "pos": "N"
+    },
+    "4,9": {
+      "biome": "Flowers",
+      "pos": "NE"
+    },
+    "2,10": {
+      "biome": "Flowers",
+      "pos": "W"
+    },
+    "3,10": {
+      "biome": "Flowers",
+      "pos": "C"
+    },
+    "4,10": {
+      "biome": "Flowers",
+      "pos": "E"
+    },
+    "2,11": {
+      "biome": "Flowers",
+      "pos": "SW"
+    },
+    "3,11": {
+      "biome": "Flowers",
+      "pos": "S"
+    },
+    "4,11": {
+      "biome": "Flowers",
+      "pos": "SE"
+    },
+    "2,12": {
+      "biome": "Flowers",
+      "pos": "NW"
+    },
+    "3,12": {
+      "biome": "Flowers",
+      "pos": "N"
+    },
+    "4,12": {
+      "biome": "Flowers",
+      "pos": "NE"
+    },
+    "2,13": {
+      "biome": "Flowers",
+      "pos": "W"
+    },
+    "3,13": {
+      "biome": "Flowers",
+      "pos": "C"
+    },
+    "4,13": {
+      "biome": "Flowers",
+      "pos": "E"
+    },
+    "2,14": {
+      "biome": "Flowers",
+      "pos": "SW"
+    },
+    "3,14": {
+      "biome": "Flowers",
+      "pos": "S"
+    },
+    "4,14": {
+      "biome": "Flowers",
+      "pos": "SE"
+    },
+    "0,1": {
+      "biome": "Water",
+      "pos": "iSE"
+    },
+    "1,1": {
+      "biome": "Water",
+      "pos": "iSW"
+    },
+    "0,2": {
+      "biome": "Water",
+      "pos": "iNE"
+    },
+    "1,2": {
+      "biome": "Water",
+      "pos": "iNW"
+    },
+    "0,6": {
+      "biome": "Flowers",
+      "pos": "iSE"
+    },
+    "1,6": {
+      "biome": "Flowers",
+      "pos": "iSW"
+    },
+    "0,7": {
+      "biome": "Flowers",
+      "pos": "iNE"
+    },
+    "1,7": {
+      "biome": "Flowers",
+      "pos": "iNW"
+    },
+    "0,9": {
+      "biome": "Flowers",
+      "pos": "iSE"
+    },
+    "1,9": {
+      "biome": "Flowers",
+      "pos": "iSW"
+    },
+    "0,10": {
+      "biome": "Flowers",
+      "pos": "iNE"
+    },
+    "1,10": {
+      "biome": "Flowers",
+      "pos": "iNW"
+    },
+    "0,12": {
+      "biome": "Flowers",
+      "pos": "iSE"
+    },
+    "1,12": {
+      "biome": "Flowers",
+      "pos": "iSW"
+    },
+    "0,13": {
+      "biome": "Flowers",
+      "pos": "iNE"
+    },
+    "1,13": {
+      "biome": "Flowers",
+      "pos": "iNW"
+    },
+    "0,3": {
+      "biome": "Pool",
+      "pos": "iSE"
+    },
+    "1,3": {
+      "biome": "Pool",
+      "pos": "iSW"
+    },
+    "0,4": {
+      "biome": "Pool",
+      "pos": "iNE"
+    },
+    "1,4": {
+      "biome": "Pool",
+      "pos": "iNW"
+    },
+    "2,3": {
+      "biome": "Pool",
+      "pos": "NW"
+    },
+    "3,3": {
+      "biome": "Pool",
+      "pos": "N"
+    },
+    "4,3": {
+      "biome": "Pool",
+      "pos": "NE"
+    },
+    "2,4": {
+      "biome": "Pool",
+      "pos": "W"
+    },
+    "3,4": {
+      "biome": "Pool",
+      "pos": "C"
+    },
+    "4,4": {
+      "biome": "Pool",
+      "pos": "E"
+    },
+    "2,5": {
+      "biome": "Pool",
+      "pos": "SW"
+    },
+    "3,5": {
+      "biome": "Pool",
+      "pos": "S"
+    },
+    "4,5": {
+      "biome": "Pool",
+      "pos": "SE"
+    }
+  }
+}

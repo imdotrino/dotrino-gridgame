@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Tile Biome Editor</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #1b1b1f; color: #eee; font: 13px system-ui, sans-serif; height: 100%; }
+  #bar { position: fixed; top: 0; left: 0; right: 0; padding: 8px 12px; background: #222; border-bottom: 1px solid #333; display: flex; gap: 10px; align-items: center; z-index: 10; }
+  #bar button, #bar select, #bar input { background: #2c2c33; color: #eee; border: 1px solid #444; padding: 4px 8px; border-radius: 4px; font: inherit; }
+  #bar button:hover { background: #383842; }
+  #stage { position: absolute; top: 42px; left: 0; right: 280px; bottom: 0; overflow: auto; background: #111; }
+  #side { position: absolute; top: 42px; right: 0; width: 280px; bottom: 0; overflow: auto; background: #1d1d24; border-left: 1px solid #333; padding: 10px; box-sizing: border-box; }
+  #side h3 { margin: 12px 0 6px; font-size: 11px; text-transform: uppercase; opacity: 0.7; letter-spacing: 0.5px; }
+  #side h3:first-child { margin-top: 0; }
+  #side .row { display: flex; gap: 4px; align-items: center; margin: 3px 0; }
+  #side button { background: #2c2c33; color: #eee; border: 1px solid #444; padding: 3px 7px; border-radius: 3px; font: inherit; cursor: pointer; }
+  #side button:hover { background: #383842; }
+  #side button.active { background: #3b6; border-color: #5d8; color: #061; }
+  #side .biomeItem { display: flex; align-items: center; gap: 6px; padding: 3px 5px; border-radius: 3px; cursor: pointer; }
+  #side .biomeItem:hover { background: #26262e; }
+  #side .biomeItem.active { background: #2e3a4a; outline: 1px solid #5d8; }
+  #side .swatch { width: 14px; height: 14px; border-radius: 2px; border: 1px solid #000; }
+  .posGrid { display: grid; gap: 3px; margin-bottom: 6px; }
+  .posGrid.cols3 { grid-template-columns: repeat(3, 1fr); }
+  .posGrid.cols2 { grid-template-columns: repeat(2, 1fr); width: calc((100% - 6px) * 2 / 3); }
+  .posGrid.cols4 { grid-template-columns: repeat(4, 1fr); }
+  .posGrid button { aspect-ratio: 1; padding: 2px; font-size: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: #eee; background: rgba(0,0,0,0.3); }
+  .posGrid button:hover { background: rgba(0,0,0,0.5); }
+  .posGrid button svg { width: 70%; height: 70%; display: block; }
+  .posGrid button.active { color: #061; }
+  .posGrid button.active svg { color: #061; }
+  .sublbl { opacity: 0.55; font-size: 10px; margin: 6px 0 2px; }
+  #compatList { max-height: 140px; overflow: auto; border: 1px solid #333; border-radius: 3px; padding: 4px; }
+  #compatList label { display: flex; align-items: center; gap: 5px; padding: 2px 0; cursor: pointer; }
+  #side input[type=text] { background: #111; color: #eee; border: 1px solid #444; padding: 3px 5px; border-radius: 3px; font: inherit; width: 100%; box-sizing: border-box; }
+  #wrap { position: relative; }
+  canvas { position: absolute; top: 0; left: 0; image-rendering: pixelated; }
+  #ui { position: absolute; top: 0; left: 0; pointer-events: none; }
+  #hint { position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 6px 10px; border-radius: 6px; font-size: 11px; }
+  .lbl { opacity: 0.7; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <span class="lbl">Zoom</span>
+  <input type="range" id="zoom" min="2" max="16" value="6" />
+  <span id="zoomVal">6×</span>
+  <span class="lbl">Gap</span>
+  <input type="range" id="gap" min="0" max="80" value="24" />
+  <span id="gapVal">24px</span>
+  <span class="lbl">Filter</span>
+  <select id="filter">
+    <option value="">all categories</option>
+  </select>
+  <button id="exportCatBtn">Export catalog</button>
+  <button id="exportBiomes">Export biomes</button>
+  <button id="importBiomes">Import biomes</button>
+  <span id="info" class="lbl"></span>
+</div>
+<div id="stage">
+  <div id="wrap">
+    <canvas id="sheet"></canvas>
+    <canvas id="ui"></canvas>
+  </div>
+</div>
+<div id="side">
+  <h3>Biomes</h3>
+  <div class="row"><input type="text" id="biomeName" placeholder="new biome id (e.g. grass)"/></div>
+  <div class="row">
+    <div id="biomePreview" style="width:24px;height:24px;border:1px solid #000;border-radius:3px;background:#3aa252"></div>
+    <input type="text" id="biomeHex" value="#3aa252" style="width:88px" pattern="#[0-9a-fA-F]{6}"/>
+    <button id="addBiome">+ Add</button>
+  </div>
+  <div id="presets" style="display:flex;flex-wrap:wrap;gap:3px;margin:4px 0"></div>
+  <div id="biomeList"></div>
+
+  <h3>Position (29-tile)</h3>
+  <div class="sublbl">Masa 3×3 (esquinas y bordes)</div>
+  <div id="posMass" class="posGrid cols3"></div>
+  <div class="sublbl">Cóncavas internas</div>
+  <div id="posInner" class="posGrid cols2"></div>
+  <div class="sublbl">Aislado / Cruz</div>
+  <div id="posSingles" class="posGrid cols2"></div>
+  <div class="sublbl">Horizontal (cap-W, medio, cap-E)</div>
+  <div id="posH" class="posGrid cols3"></div>
+  <div class="sublbl">Vertical (cap-N, medio, cap-S)</div>
+  <div id="posV" class="posGrid cols3"></div>
+  <div class="sublbl">T-junctions (nombre = dir sin conexión)</div>
+  <div id="posT" class="posGrid cols4"></div>
+  <div class="sublbl">Codos (nombre = direcciones conectadas)</div>
+  <div id="posElbows" class="posGrid cols2"></div>
+
+  <h3>Compatible biomes</h3>
+  <div id="compatList"><div class="lbl">(pick a biome)</div></div>
+
+</div>
+
+<div id="hint">
+  Pick a biome + position, then click tiles to classify (drag to paint). Right-click to clear. Middle-button drag to pan.
+</div>
+
+<script>
+const COLS = 57, ROWS = 31, TILE = 16, STRIDE = 17;
+
+const state = {
+  zoom: 6,
+  spacing: 24,
+  filter: '',
+  catalog: null,
+  hoverTile: null,
+  painting: false,
+  paintedKey: null,
+  pan: null,
+  biomes: [],          // [{id, color, compat:[id|'*']}]
+  activeBiome: null,
+  activePos: null,
+  tileBiome: {},       // "x,y" → {biome, pos}
+  biomeFilters: new Set(),  // biome ids whose tiles should remain bright
+};
+
+const POS_QUADS = {
+  C:   { NW:'in', NE:'in', SW:'in', SE:'in' },
+  N:   { NW:'out',NE:'out',SW:'in', SE:'in' },
+  S:   { NW:'in', NE:'in', SW:'out',SE:'out'},
+  W:   { NW:'out',NE:'in', SW:'out',SE:'in' },
+  E:   { NW:'in', NE:'out',SW:'in', SE:'out'},
+  NW:  { NW:'out',NE:'out',SW:'out',SE:'in' },
+  NE:  { NW:'out',NE:'out',SW:'in', SE:'out'},
+  SW:  { NW:'out',NE:'in', SW:'out',SE:'out'},
+  SE:  { NW:'in', NE:'out',SW:'out',SE:'out'},
+  iNW: { NW:'out',NE:'in', SW:'in', SE:'in' },
+  iNE: { NW:'in', NE:'out',SW:'in', SE:'in' },
+  iSW: { NW:'in', NE:'in', SW:'out',SE:'in' },
+  iSE: { NW:'in', NE:'in', SW:'in', SE:'out'}
+};
+
+function cellSize () { return TILE * state.zoom; }
+function cellStride () { return cellSize() + state.spacing; }
+function tileOrigin (tx, ty) { return { x: tx * cellStride(), y: ty * cellStride() }; }
+
+const sheet = document.getElementById('sheet');
+const ui = document.getElementById('ui');
+const sctx = sheet.getContext('2d');
+const uctx = ui.getContext('2d');
+const img = new Image();
+img.src = 'tiles.png';
+img.onload = () => { layoutCanvas(); drawSheet(); drawUI(); };
+
+function layoutCanvas () {
+  const w = COLS * cellStride() + state.spacing;
+  const h = ROWS * cellStride() + state.spacing;
+  sheet.width = w; sheet.height = h;
+  ui.width = w; ui.height = h;
+  document.getElementById('wrap').style.width = w + 'px';
+  document.getElementById('wrap').style.height = h + 'px';
+}
+
+function drawSheet () {
+  const s = cellSize();
+  sctx.imageSmoothingEnabled = false;
+  sctx.fillStyle = '#111';
+  sctx.fillRect(0, 0, sheet.width, sheet.height);
+  for (let ty = 0; ty < ROWS; ty++) {
+    for (let tx = 0; tx < COLS; tx++) {
+      const o = tileOrigin(tx, ty);
+      sctx.fillStyle = '#1a1a20';
+      sctx.fillRect(o.x, o.y, s, s);
+      sctx.drawImage(img, tx * STRIDE, ty * STRIDE, TILE, TILE, o.x, o.y, s, s);
+    }
+  }
+  if (state.filter || state.biomeFilters.size) {
+    for (let ty = 0; ty < ROWS; ty++) {
+      for (let tx = 0; tx < COLS; tx++) {
+        const v = (state.catalog && state.catalog.tiles[`${tx},${ty}`]) || '';
+        const cls = state.tileBiome[`${tx},${ty}`];
+        const catOk = !state.filter || v.split(':')[0] === state.filter;
+        const bioOk = !state.biomeFilters.size || (cls && state.biomeFilters.has(cls.biome));
+        if (!(catOk && bioOk)) {
+          const o = tileOrigin(tx, ty);
+          sctx.fillStyle = 'rgba(0,0,0,0.6)';
+          sctx.fillRect(o.x, o.y, s, s);
+        }
+      }
+    }
+  }
+  // biome classification overlay (SVG icon in biome color)
+  for (const [k, info] of Object.entries(state.tileBiome)) {
+    const [tx, ty] = k.split(',').map(Number);
+    const b = state.biomes.find(x => x.id === info.biome);
+    if (!b) continue;
+    const o = tileOrigin(tx, ty);
+    sctx.strokeStyle = b.color;
+    sctx.lineWidth = Math.max(2, state.zoom * 0.35);
+    sctx.strokeRect(o.x + sctx.lineWidth/2, o.y + sctx.lineWidth/2, s - sctx.lineWidth, s - sctx.lineWidth);
+    // Small icon + text label in the top-left corner only.
+    const isz = Math.max(12, s * 0.32);
+    const img = getIconImage(info.pos, b.color);
+    if (img && img.complete && img.naturalWidth) {
+      sctx.drawImage(img, o.x + 1, o.y + 1, isz, isz);
+    }
+    const fs = Math.max(7, isz * 0.55);
+    sctx.font = `bold ${fs}px monospace`;
+    const txt = info.pos;
+    const tw = sctx.measureText(txt).width;
+    sctx.fillStyle = b.color;
+    sctx.fillRect(o.x + 1 + isz + 1, o.y + 1, tw + 4, fs + 3);
+    sctx.fillStyle = '#000';
+    sctx.textBaseline = 'top';
+    sctx.fillText(txt, o.x + 1 + isz + 3, o.y + 2);
+  }
+  sctx.strokeStyle = 'rgba(255,0,255,0.25)';
+  sctx.lineWidth = 1;
+  for (let ty = 0; ty < ROWS; ty++) {
+    for (let tx = 0; tx < COLS; tx++) {
+      const o = tileOrigin(tx, ty);
+      sctx.strokeRect(o.x + 0.5, o.y + 0.5, s, s);
+    }
+  }
+}
+
+function drawUI () {
+  uctx.clearRect(0, 0, ui.width, ui.height);
+  if (state.hoverTile) {
+    const o = tileOrigin(state.hoverTile.x, state.hoverTile.y);
+    const s = cellSize();
+    uctx.strokeStyle = 'rgba(120,255,120,0.9)';
+    uctx.lineWidth = 3;
+    uctx.strokeRect(o.x + 1.5, o.y + 1.5, s - 3, s - 3);
+  }
+  let count = Object.keys(state.tileBiome).length;
+  document.getElementById('info').textContent = `${count} classified · ${state.biomes.length} biomes`;
+}
+
+function pickTile (mx, my) {
+  const stride = cellStride();
+  const tx = Math.floor(mx / stride);
+  const ty = Math.floor(my / stride);
+  if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) return null;
+  const o = tileOrigin(tx, ty);
+  const lx = mx - o.x;
+  const ly = my - o.y;
+  const s = cellSize();
+  if (lx < 0 || ly < 0 || lx > s || ly > s) return null;
+  return { x: tx, y: ty };
+}
+
+// ---- modes ----
+function biomeMode () { return state.activeBiome && state.activePos; }
+
+const ALL9_OFFSETS = [
+  { dx:-1, dy:-1, pos:'NW' }, { dx:0, dy:-1, pos:'N' }, { dx:1, dy:-1, pos:'NE' },
+  { dx:-1, dy: 0, pos:'W'  }, { dx:0, dy: 0, pos:'C' }, { dx:1, dy: 0, pos:'E'  },
+  { dx:-1, dy: 1, pos:'SW' }, { dx:0, dy: 1, pos:'S' }, { dx:1, dy: 1, pos:'SE' }
+];
+// Inner-concave 2×2 block in the Kenney sheet:
+//   [iSE][iSW]
+//   [iNE][iNW]
+const ALL4_OFFSETS = [
+  { dx:0, dy:0, pos:'iSE' }, { dx:1, dy:0, pos:'iSW' },
+  { dx:0, dy:1, pos:'iNE' }, { dx:1, dy:1, pos:'iNW' }
+];
+
+function toggleBiomeAt (tile) {
+  if (state.activePos === 'ALL9') {
+    const ck = `${tile.x},${tile.y}`;
+    const cur = state.tileBiome[ck];
+    const alreadyBlock = cur && cur.biome === state.activeBiome && cur.pos === 'C';
+    for (const { dx, dy, pos } of ALL9_OFFSETS) {
+      const x = tile.x + dx, y = tile.y + dy;
+      if (x < 0 || y < 0 || x >= COLS || y >= ROWS) continue;
+      const k = `${x},${y}`;
+      if (alreadyBlock) delete state.tileBiome[k];
+      else state.tileBiome[k] = { biome: state.activeBiome, pos };
+    }
+    return;
+  }
+  if (state.activePos === 'ALL4') {
+    // Click = top-left of a 2×2 inner-corner block
+    const ck = `${tile.x},${tile.y}`;
+    const cur = state.tileBiome[ck];
+    const alreadyBlock = cur && cur.biome === state.activeBiome && cur.pos === 'iNW';
+    for (const { dx, dy, pos } of ALL4_OFFSETS) {
+      const x = tile.x + dx, y = tile.y + dy;
+      if (x < 0 || y < 0 || x >= COLS || y >= ROWS) continue;
+      const k = `${x},${y}`;
+      if (alreadyBlock) delete state.tileBiome[k];
+      else state.tileBiome[k] = { biome: state.activeBiome, pos };
+    }
+    return;
+  }
+  const k = `${tile.x},${tile.y}`;
+  const cur = state.tileBiome[k];
+  if (cur && cur.biome === state.activeBiome && cur.pos === state.activePos) {
+    delete state.tileBiome[k];
+  } else {
+    state.tileBiome[k] = { biome: state.activeBiome, pos: state.activePos };
+  }
+}
+
+function setTileCategory (x, y, cat) {
+  if (!state.catalog) return;
+  const key = `${x},${y}`;
+  if (cat.includes(':')) { state.catalog.tiles[key] = cat; return; }
+  const cur = state.catalog.tiles[key];
+  let label = '';
+  if (cur) {
+    const idx = cur.indexOf(':');
+    label = idx >= 0 ? cur.slice(idx + 1) : '';
+  }
+  state.catalog.tiles[key] = label ? `${cat}:${label}` : cat;
+}
+
+function clearTileCategory (x, y) {
+  if (!state.catalog) return;
+  delete state.catalog.tiles[`${x},${y}`];
+}
+
+function toggleAt (tile) {
+  if (!tile) return;
+  if (biomeMode()) { toggleBiomeAt(tile); return; }
+  if (state.filter) {
+    const cur = state.catalog ? (state.catalog.tiles[`${tile.x},${tile.y}`] || '') : '';
+    const isBiome = state.filter.includes(':');
+    const matches = isBiome ? (cur === state.filter) : (cur.split(':')[0] === state.filter);
+    if (matches) clearTileCategory(tile.x, tile.y);
+    else setTileCategory(tile.x, tile.y, state.filter);
+  }
+}
+
+// ---- input ----
+const stageEl = document.getElementById('stage');
+
+ui.addEventListener('mousedown', e => {
+  if (e.button === 1) {
+    e.preventDefault();
+    state.pan = { x: e.clientX, y: e.clientY, sl: stageEl.scrollLeft, st: stageEl.scrollTop };
+    stageEl.style.cursor = 'grabbing';
+    return;
+  }
+  if (e.button === 0 && (state.filter || biomeMode())) {
+    const r = ui.getBoundingClientRect();
+    const tile = pickTile(e.clientX - r.left, e.clientY - r.top);
+    if (!tile) return;
+    state.painting = true;
+    state.paintedKey = `${tile.x},${tile.y}`;
+    toggleAt(tile);
+    drawSheet(); drawUI();
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  if (state.pan) { state.pan = null; stageEl.style.cursor = ''; }
+  if (state.painting) { state.painting = false; state.paintedKey = null; }
+});
+
+ui.addEventListener('mousemove', e => {
+  if (state.pan) {
+    stageEl.scrollLeft = state.pan.sl - (e.clientX - state.pan.x);
+    stageEl.scrollTop  = state.pan.st - (e.clientY - state.pan.y);
+    return;
+  }
+  const r = ui.getBoundingClientRect();
+  const mx = e.clientX - r.left;
+  const my = e.clientY - r.top;
+  const tile = pickTile(mx, my);
+  state.hoverTile = (state.filter || biomeMode()) ? tile : null;
+  if (state.painting && tile) {
+    const k = `${tile.x},${tile.y}`;
+    if (k !== state.paintedKey) {
+      state.paintedKey = k;
+      toggleAt(tile);
+      drawSheet();
+    }
+  }
+  drawUI();
+});
+
+ui.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const r = ui.getBoundingClientRect();
+  const t = pickTile(e.clientX - r.left, e.clientY - r.top);
+  if (!t) return;
+  if (biomeMode()) { delete state.tileBiome[`${t.x},${t.y}`]; }
+  else if (state.filter) { clearTileCategory(t.x, t.y); }
+  drawSheet(); drawUI();
+});
+
+ui.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+ui.style.pointerEvents = 'auto';
+sheet.style.pointerEvents = 'none';
+
+// ---- bar ----
+document.getElementById('zoom').addEventListener('input', e => {
+  state.zoom = parseInt(e.target.value, 10);
+  document.getElementById('zoomVal').textContent = state.zoom + '×';
+  layoutCanvas(); drawSheet(); drawUI();
+});
+document.getElementById('gap').addEventListener('input', e => {
+  state.spacing = parseInt(e.target.value, 10);
+  document.getElementById('gapVal').textContent = state.spacing + 'px';
+  layoutCanvas(); drawSheet(); drawUI();
+});
+document.getElementById('filter').addEventListener('change', e => {
+  state.filter = e.target.value;
+  drawSheet(); drawUI();
+});
+document.getElementById('exportCatBtn').addEventListener('click', () => {
+  if (!state.catalog) return alert('catalog not loaded');
+  const json = JSON.stringify(state.catalog, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tile_catalog.json'; a.click();
+});
+
+// ---- sidebar ----
+function renderBiomeList () {
+  const root = document.getElementById('biomeList');
+  root.innerHTML = '';
+  for (const b of state.biomes) {
+    const div = document.createElement('div');
+    div.className = 'biomeItem' + (b.id === state.activeBiome ? ' active' : '');
+    const checked = state.biomeFilters.has(b.id) ? 'checked' : '';
+    b.kind = b.kind || 'normal';
+    const opts = ['normal','water','sand'].map(k =>
+      `<option value="${k}" ${b.kind===k?'selected':''}>${k}</option>`).join('');
+    div.innerHTML = `<input type="checkbox" data-act="filter" ${checked} title="filter to this biome"/>` +
+      `<div class="swatch" style="background:${b.color}"></div>` +
+      `<span style="flex:1">${b.id}</span>` +
+      `<select data-act="kind" title="physical type (engine speed)" style="background:#111;color:#eee;border:1px solid #444;font-size:11px">${opts}</select>` +
+      `<button data-act="del" title="delete">×</button>`;
+    div.addEventListener('change', e => {
+      if (e.target.dataset.act === 'kind') { b.kind = e.target.value; }
+    });
+    div.addEventListener('click', e => {
+      if (e.target.dataset.act === 'filter') {
+        if (e.target.checked) state.biomeFilters.add(b.id);
+        else state.biomeFilters.delete(b.id);
+        drawSheet();
+        return;
+      }
+      if (e.target.dataset.act === 'kind') return;
+      if (e.target.dataset.act === 'del') {
+        if (confirm('Delete biome ' + b.id + '?')) {
+          state.biomes = state.biomes.filter(x => x !== b);
+          if (state.activeBiome === b.id) state.activeBiome = null;
+          for (const k of Object.keys(state.tileBiome)) if (state.tileBiome[k].biome === b.id) delete state.tileBiome[k];
+          state.biomeFilters.delete(b.id);
+          renderBiomeList(); renderCompat(); drawSheet(); drawUI();
+        }
+        return;
+      }
+      state.activeBiome = b.id;
+      renderBiomeList(); renderCompat();
+    });
+    root.appendChild(div);
+  }
+}
+
+function renderCompat () {
+  const root = document.getElementById('compatList');
+  root.innerHTML = '';
+  const b = state.biomes.find(x => x.id === state.activeBiome);
+  if (!b) { root.innerHTML = '<div class="lbl">(pick a biome)</div>'; return; }
+  b.compat = b.compat || [];
+  const opts = ['*', ...state.biomes.map(x => x.id).filter(id => id !== b.id)];
+  for (const opt of opts) {
+    const lbl = document.createElement('label');
+    const cb = document.createElement('input'); cb.type = 'checkbox';
+    cb.checked = b.compat.includes(opt);
+    cb.addEventListener('change', () => {
+      if (cb.checked) { if (!b.compat.includes(opt)) b.compat.push(opt); }
+      else b.compat = b.compat.filter(x => x !== opt);
+    });
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(' ' + (opt === '*' ? '* (transparente: cualquier bioma)' : opt)));
+    root.appendChild(lbl);
+  }
+}
+
+const OUTER9 = ['NW','N','NE','W','C','E','SW','S','SE'];
+const INNER4 = ['iNW','iNE','iSW','iSE'];
+
+// ---- icon generation ----
+function svgWrap (inner) {
+  return `<svg viewBox="0 0 24 24"><rect x="0" y="0" width="24" height="24" fill="rgba(0,0,0,0.3)" rx="2"/>${inner}</svg>`;
+}
+
+// Rasterized icon cache for canvas drawing. key = `${pos}|${color}`.
+const _iconCache = {};
+function getIconImage (pos, color) {
+  const key = pos + '|' + color;
+  const cached = _iconCache[key];
+  if (cached) return cached;
+  const inner = ICONS[pos] || '';
+  // Replace currentColor with the biome color so the rasterized SVG carries it.
+  const body = inner.replace(/currentColor/g, color);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect x="0" y="0" width="24" height="24" fill="rgba(0,0,0,0.55)" rx="2"/>${body}</svg>`;
+  const img = new Image();
+  img.onload = () => { drawSheet(); };
+  img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  _iconCache[key] = img;
+  return img;
+}
+function massQuads (q) {
+  // q = {NW,NE,SW,SE} booleans
+  let s = '';
+  if (q.NW) s += `<rect x="2" y="2" width="10" height="10" fill="currentColor"/>`;
+  if (q.NE) s += `<rect x="12" y="2" width="10" height="10" fill="currentColor"/>`;
+  if (q.SW) s += `<rect x="2" y="12" width="10" height="10" fill="currentColor"/>`;
+  if (q.SE) s += `<rect x="12" y="12" width="10" height="10" fill="currentColor"/>`;
+  return s;
+}
+const PIPE_STROKE = `stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"`;
+const pipe = d => `<path d="${d}" ${PIPE_STROKE}/>`;
+const dot = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="currentColor"/>`;
+
+const ICONS = {
+  NW: massQuads({SE:1}),
+  N:  massQuads({SW:1,SE:1}),
+  NE: massQuads({SW:1}),
+  W:  massQuads({NE:1,SE:1}),
+  C:  massQuads({NW:1,NE:1,SW:1,SE:1}),
+  E:  massQuads({NW:1,SW:1}),
+  SW: massQuads({NE:1}),
+  S:  massQuads({NW:1,NE:1}),
+  SE: massQuads({NW:1}),
+  iNW: massQuads({NE:1,SW:1,SE:1}),
+  iNE: massQuads({NW:1,SW:1,SE:1}),
+  iSW: massQuads({NW:1,NE:1,SE:1}),
+  iSE: massQuads({NW:1,NE:1,SW:1}),
+  I:   dot(12,12,4),
+  hW:  pipe('M12,12 L22,12') + dot(12,12,3.5),
+  hC:  pipe('M2,12 L22,12'),
+  hE:  pipe('M12,12 L2,12') + dot(12,12,3.5),
+  vN:  pipe('M12,12 L12,22') + dot(12,12,3.5),
+  vC:  pipe('M12,2 L12,22'),
+  vS:  pipe('M12,12 L12,2') + dot(12,12,3.5),
+  TN:  pipe('M2,12 L22,12') + pipe('M12,12 L12,22'),
+  TS:  pipe('M2,12 L22,12') + pipe('M12,12 L12,2'),
+  TW:  pipe('M12,2 L12,22') + pipe('M12,12 L22,12'),
+  TE:  pipe('M12,2 L12,22') + pipe('M12,12 L2,12'),
+  '+': pipe('M2,12 L22,12') + pipe('M12,2 L12,22'),
+  eNE: pipe('M12,2 L12,12') + pipe('M12,12 L22,12'),
+  eNW: pipe('M12,2 L12,12') + pipe('M12,12 L2,12'),
+  eSE: pipe('M12,22 L12,12') + pipe('M12,12 L22,12'),
+  eSW: pipe('M12,22 L12,12') + pipe('M12,12 L2,12')
+};
+
+const POS_SECTIONS = {
+  posMass:    ['NW','N','NE','W','C','E','SW','S','SE'],
+  posInner:   ['iSE','iSW','iNE','iNW'],
+  posSingles: ['I','+'],
+  posH:       ['hW','hC','hE'],
+  posV:       ['vN','vC','vS'],
+  posT:       ['TN','TS','TW','TE'],
+  posElbows:  ['eNE','eNW','eSE','eSW']
+};
+
+function buildPosButtons () {
+  for (const [containerId, list] of Object.entries(POS_SECTIONS)) {
+    const root = document.getElementById(containerId);
+    if (!root) continue;
+    root.innerHTML = '';
+    for (const p of list) {
+      const btn = document.createElement('button');
+      btn.dataset.pos = p;
+      btn.title = p;
+      btn.innerHTML = `${svgWrap(ICONS[p] || '')}<span>${p}</span>`;
+      btn.addEventListener('click', () => setActivePos(p));
+      btn.addEventListener('dblclick', () => {
+        if (OUTER9.includes(p)) setActiveAll9();
+        else if (INNER4.includes(p)) setActiveAll4();
+      });
+      root.appendChild(btn);
+    }
+  }
+}
+
+function setActivePos (p) {
+  state.activePos = (state.activePos === p) ? null : p;
+  refreshPosButtons();
+}
+function setActiveAll9 () {
+  state.activePos = (state.activePos === 'ALL9') ? null : 'ALL9';
+  refreshPosButtons();
+}
+function setActiveAll4 () {
+  state.activePos = (state.activePos === 'ALL4') ? null : 'ALL4';
+  refreshPosButtons();
+}
+function refreshPosButtons () {
+  for (const btn of document.querySelectorAll('.posGrid button')) {
+    const p = btn.dataset.pos;
+    let on = false;
+    if (state.activePos === 'ALL9') on = OUTER9.includes(p);
+    else if (state.activePos === 'ALL4') on = INNER4.includes(p);
+    else on = p === state.activePos;
+    btn.classList.toggle('active', on);
+  }
+}
+buildPosButtons();
+
+const hexInput = document.getElementById('biomeHex');
+const previewEl = document.getElementById('biomePreview');
+const presetsEl = document.getElementById('presets');
+const PRESETS = ['#3aa252','#2a6fdb','#d9c878','#7a5a3a','#888888','#c0392b','#9b59ff','#ffd24a','#1abc9c','#e67e22','#000000','#ffffff'];
+
+function isValidHex (s) { return /^#[0-9a-fA-F]{6}$/.test(s); }
+function updatePreview () {
+  const v = hexInput.value.trim();
+  if (isValidHex(v)) { previewEl.style.background = v; hexInput.style.background = ''; }
+  else hexInput.style.background = '#553';
+}
+hexInput.addEventListener('input', updatePreview);
+
+for (const c of PRESETS) {
+  const d = document.createElement('div');
+  d.style.cssText = `width:18px;height:18px;border-radius:3px;border:1px solid #000;background:${c};cursor:pointer`;
+  d.title = c;
+  d.addEventListener('click', () => { hexInput.value = c; updatePreview(); });
+  presetsEl.appendChild(d);
+}
+
+function pickedHex () {
+  const h = hexInput.value.trim();
+  return isValidHex(h) ? h : '#888888';
+}
+
+document.getElementById('addBiome').addEventListener('click', () => {
+  const id = document.getElementById('biomeName').value.trim();
+  if (!id) return;
+  if (state.biomes.find(x => x.id === id)) return alert('biome already exists');
+  const color = pickedHex();
+  state.biomes.push({ id, color, compat: [] });
+  document.getElementById('biomeName').value = '';
+  state.activeBiome = id;
+  renderBiomeList(); renderCompat();
+});
+
+document.getElementById('exportBiomes').addEventListener('click', () => {
+  const data = { biomes: state.biomes, tileBiome: state.tileBiome };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tile_biomes.json'; a.click();
+});
+
+document.getElementById('importBiomes').addEventListener('click', () => {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'application/json';
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      state.biomes = data.biomes || [];
+      state.tileBiome = data.tileBiome || {};
+      state.activeBiome = state.biomes[0]?.id || null;
+      renderBiomeList(); renderCompat();
+      drawSheet(); drawUI();
+    } catch (e) { alert('bad json: ' + e.message); }
+  };
+  inp.click();
+});
+
+// ---- catalog ----
+async function loadCatalog () {
+  try {
+    const r = await fetch('tile_catalog.json');
+    state.catalog = await r.json();
+    const sel = document.getElementById('filter');
+    for (const c of state.catalog._meta.categories) {
+      const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o);
+    }
+    drawSheet();
+  } catch (e) { console.warn('catalog load failed', e); }
+}
+
+const DEFAULT_BIOMES = [
+  { id:'water', color:'#2a6fdb', compat:['*'], kind:'water'  },
+  { id:'sand',  color:'#d9c878', compat:['*'], kind:'sand'   },
+  { id:'grass', color:'#3aa252', compat:['*'], kind:'normal' },
+  { id:'dirt',  color:'#7a5a3a', compat:['*'], kind:'normal' },
+  { id:'stone', color:'#888888', compat:['*'], kind:'normal' }
+];
+
+async function loadInitialBiomes () {
+  try {
+    const r = await fetch('tile_biomes.json');
+    if (r.ok) {
+      const data = await r.json();
+      state.biomes = data.biomes || [];
+      state.tileBiome = data.tileBiome || {};
+    }
+  } catch (e) {}
+  if (!state.biomes.length) {
+    state.biomes = DEFAULT_BIOMES.map(b => ({ ...b, compat: [...b.compat] }));
+  }
+  state.activeBiome = state.biomes[0]?.id || null;
+  renderBiomeList(); renderCompat();
+  drawSheet(); drawUI();
+}
+
+renderBiomeList();
+renderCompat();
+loadCatalog();
+loadInitialBiomes();
+</script>
+</body>
+</html>
