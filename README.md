@@ -1,5 +1,7 @@
 # GridGame
 
+> **Parte del ecosistema [Dotrino](https://dotrino.com).** Misión: aplicaciones que resuelven problemas comunes, respetando tu privacidad — sin anuncios, sin cookies, sin rastreo de datos, sin vender tu identidad a nadie.
+
 Sandbox multijugador cooperativo en un grid del ecosistema [Dotrino](https://dotrino.github.io/dotrino/). Mundo subjetivo: cada peer hostea lo que crea y carga el entorno alrededor a medida que se mueve.
 
 ## Filosofía
