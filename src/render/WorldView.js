@@ -7,15 +7,20 @@ import { getSheet } from './tiles.js'
 //   2) overrides del LocalStore (ground/prop/item/actor) resueltos por
 //      reputación → recencia.
 // La reputación viene inyectada (repOf), normalmente desde identity.
+// Las etiquetas del HUD también (hudLabels): el canvas queda fuera de Vue, así
+// que la app pasa un getter y cada frame dibuja en el idioma activo (§9).
+
+const HUD_FALLBACK = { pos: 'pos', seed: 'world', objects: 'objects', own: 'own', others: 'others', saved: 'saved', total: 'total' }
 
 export class WorldView {
-  constructor (canvas, { tileSize = 24, ground, store = null, repOf = null } = {}) {
+  constructor (canvas, { tileSize = 24, ground, store = null, repOf = null, hudLabels = null } = {}) {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')
     this.tileSize = tileSize
     this.ground = ground || new ProceduralGround()
     this.store = store
     this.repOf = repOf
+    this.hudLabels = hudLabels || (() => HUD_FALLBACK)
     this.camera = { x: 0, y: 0 } // centro en coords de tile
     this.sheet = getSheet()
     this._raf = null
@@ -98,18 +103,27 @@ export class WorldView {
     ctx.fillStyle = '#ff3355'
     ctx.fillRect(w / 2 - tileSize / 3, h / 2 - tileSize / 3, tileSize * 2 / 3, tileSize * 2 / 3)
 
-    // HUD
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'
-    ctx.fillRect(8, 8, 220, this.store ? 76 : 44)
-    ctx.fillStyle = '#fff'
-    ctx.font = '12px system-ui, sans-serif'
-    ctx.fillText(`pos: ${camera.x.toFixed(1)}, ${camera.y.toFixed(1)}`, 16, 26)
-    ctx.fillText(`seed: ${ground.seed}`, 16, 42)
+    // HUD (etiquetas en el idioma activo, §9).
+    const L = this.hudLabels() || HUD_FALLBACK
+    const lines = [
+      `${L.pos}: ${camera.x.toFixed(1)}, ${camera.y.toFixed(1)}`,
+      `${L.seed}: ${ground.seed}`
+    ]
     if (this.store) {
       const s = this.store.stats()
-      ctx.fillText(`store: own=${s.owned} repl=${s.replicated} cache=${s.cached}`, 16, 58)
-      ctx.fillText(`total: ${s.total}`, 16, 74)
+      lines.push(`${L.objects}: ${L.own}=${s.owned} ${L.others}=${s.replicated} ${L.saved}=${s.cached}`)
+      lines.push(`${L.total}: ${s.total}`)
     }
+    ctx.font = '12px system-ui, sans-serif'
+    // El panel se ensancha hasta el texto más largo (mismo sitio y alto de
+    // siempre): las etiquetas traducidas no miden igual en es que en en, y con
+    // el ancho fijo de antes el texto se salía de la caja.
+    let panelW = 220
+    for (const ln of lines) panelW = Math.max(panelW, Math.ceil(ctx.measureText(ln).width) + 16)
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'
+    ctx.fillRect(8, 8, panelW, this.store ? 76 : 44)
+    ctx.fillStyle = '#fff'
+    lines.forEach((ln, i) => ctx.fillText(ln, 16, 26 + i * 16))
   }
 
   _drawProcedural (proc, px, py, ts) {

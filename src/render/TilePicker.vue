@@ -1,7 +1,11 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { messages } from '../i18n.js'
 
 const emit = defineEmits(['close'])
+// El idioma baja desde App.vue, que es quien escucha al <dotrino-topbar> (§9).
+const props = defineProps({ lang: { type: String, default: 'es' } })
+const t = computed(() => messages[props.lang].picker)
 const canvasRef = ref(null)
 const info = ref({ col: 0, row: 0 })
 const ZOOM = 2 // 16 → 32px por tile en pantalla
@@ -53,7 +57,7 @@ onBeforeUnmount(() => {})
 <template>
   <div class="picker" @click.self="emit('close')">
     <div class="bar">
-      tile: <b>[{{ info.col }}, {{ info.row }}]</b> · click para copiar · ESC para cerrar
+      {{ t.tile }}: <b>[{{ info.col }}, {{ info.row }}]</b> · {{ t.copy }} · {{ t.close }}
     </div>
     <div class="scroll">
       <canvas ref="canvasRef" @mousemove="onMove" @click="onClick"></canvas>

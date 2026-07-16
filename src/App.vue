@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watchEffect } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watchEffect } from 'vue'
+import { messages, detectLang } from './i18n.js'
 import { WorldView } from './render/WorldView.js'
 import { ProceduralGround } from './world/ProceduralGround.js'
 import { LocalStore } from './world/LocalStore.js'
@@ -15,6 +16,20 @@ import '@dotrino/topbar' // barra superior estándar (§5): marca + volver + per
 import { useBackLayer } from '@dotrino/nav/vue'
 
 const showPicker = ref(false)
+
+// --- Idioma (§9) ---
+// La fuente de verdad es el <dotrino-topbar>: persiste 'dotrino.lang' y emite
+// 'dotrino-lang' al cambiarlo. Arrancamos con su mismo criterio (detectLang) y
+// desde ahí solo escuchamos: la app no tiene toggle ni clave propios.
+const lang = ref(detectLang())
+const t = computed(() => messages[lang.value])
+function onLang (e) {
+  const l = e.detail?.lang
+  if (l === 'es' || l === 'en') lang.value = l
+}
+// Coherencia lang/og:locale (§7): el topbar ya lo hace al togglear; esto cubre
+// la carga inicial (idioma guardado o del navegador).
+watchEffect(() => { document.documentElement.lang = lang.value })
 
 // --- Roster de jugadores conectados + perfil/reputación compartido ---
 const peers = ref([])
@@ -60,7 +75,10 @@ watchEffect(() => {
 })
 
 const canvasRef = ref(null)
-const status = ref('booting…')
+// El estado se guarda como CLAVE, no como texto ya traducido: así cambiar de
+// idioma retraduce también la línea de estado.
+const statusKey = ref('booting')
+const status = computed(() => t.value.status[statusKey.value])
 let view = null
 let store = null
 let link = null
@@ -150,7 +168,7 @@ function tryAttackNearest () {
 }
 
 onMounted(async () => {
-  status.value = 'identity…'
+  statusKey.value = 'identity'
   await initIdentity()
   myPk = getMyPubkey() || `local-${Math.random().toString(36).slice(2, 8)}`
   // Cablea el topbar con los pilares ya inicializados (perfil + avatar).
@@ -163,7 +181,10 @@ onMounted(async () => {
     tileSize: 28,
     ground: new ProceduralGround(0xC10C3E),
     store,
-    repOf: repOfSync
+    repOf: repOfSync,
+    // El HUD se dibuja en canvas (fuera de Vue): le pasamos un getter para que
+    // cada frame lea las etiquetas del idioma activo.
+    hudLabels: () => t.value.hud
   })
   view.resize()
   view.start()
@@ -173,15 +194,15 @@ onMounted(async () => {
   window.addEventListener('keyup', onKeyUp)
   window.addEventListener('resize', onResize)
 
-  status.value = 'connecting proxy…'
+  statusKey.value = 'connecting'
   try {
     link = new PeerLink({ store, repOfSync, url: import.meta.env.VITE_WS_URL || undefined })
     await link.start(myPk)
     combat = new CombatHost({ store, peerLink: link, myPubkey: myPk })
-    status.value = `online · pk=${(myPk || '').slice(0, 10)}`
+    statusKey.value = 'online'
   } catch (e) {
     console.warn('proxy connect failed', e)
-    status.value = `offline (no proxy) · pk=${(myPk || '').slice(0, 10)}`
+    statusKey.value = 'offline'
   }
 
   // Pre-warm rep cache para peers que descubramos.
@@ -222,29 +243,30 @@ onBeforeUnmount(() => {
        navegador). El modificador `.attr` fuerza setAttribute, que es lo que el
        componente lee.
 
-       La UI del juego es solo en español, así que fijamos el idioma del chrome
-       compartido y ocultamos el toggle (`no-lang`, §9: apps de un solo idioma). -->
+       El toggle ES/EN del topbar es el ÚNICO selector de idioma de la app (§9):
+       él persiste la preferencia y nos avisa por 'dotrino-lang'. -->
   <dotrino-topbar
     ref="topbarRef"
     brand="GridGame"
     icon="/icon.svg"
     brand-href="./"
-    :lang.attr="'es'"
-    no-lang
+    :lang.attr="lang"
     profile
     support-href="https://ko-fi.com/dotrino"
     support-repo="imdotrino/dotrino-gridgame"
     support-discord="https://discord.gg/D648uq7cth"
+    @dotrino-lang="onLang"
   ></dotrino-topbar>
   <div class="hint">
-    WASD · <b>Q</b> roca · <b>E</b> summon · <b>F</b> atacar · <b>T</b> tile picker
+    WASD {{ t.hint.move }} · <b>Q</b> {{ t.hint.rock }} · <b>E</b> {{ t.hint.summon }} ·
+    <b>F</b> {{ t.hint.attack }} · <b>T</b> {{ t.hint.tiles }}
     <div class="status">{{ status }}</div>
   </div>
-  <TilePicker v-if="showPicker" @close="showPicker = false" />
+  <TilePicker v-if="showPicker" :lang="lang" @close="showPicker = false" />
 
   <div v-if="peers.length" class="roster">
-    <div class="roster-title">Jugadores</div>
-    <button v-for="pk in peers" :key="pk" class="roster-item" @click="openPeer(pk)" title="Ver perfil / reputación">
+    <div class="roster-title">{{ t.roster.title }}</div>
+    <button v-for="pk in peers" :key="pk" class="roster-item" @click="openPeer(pk)" :title="t.roster.open">
       <span class="dot"></span>{{ shortPk(pk) }}
     </button>
   </div>
@@ -254,6 +276,7 @@ onBeforeUnmount(() => {
     :ref="bindProfile"
     modal
     mode="edit"
+    :lang.attr="lang"
     :style="profileTheme"
     :pubkey="profilePk"
     :name="shortPk(profilePk)"
