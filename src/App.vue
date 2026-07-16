@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watchEffect } from 'vue'
 import { WorldView } from './render/WorldView.js'
 import { ProceduralGround } from './world/ProceduralGround.js'
 import { LocalStore } from './world/LocalStore.js'
@@ -11,6 +11,7 @@ import { passableAt } from './world/collision.js'
 import TilePicker from './render/TilePicker.vue'
 import { createVaultProfileProvider } from '@dotrino/profile'
 import '@dotrino/profile'
+import '@dotrino/topbar' // barra superior estándar (§5): marca + volver + perfil + support
 import { useBackLayer } from '@dotrino/nav/vue'
 
 const showPicker = ref(false)
@@ -28,16 +29,12 @@ async function ensureProfileProvider () {
   return _profileProvider
 }
 function openPeer (pk) { if (pk && pk !== myPk) profilePk.value = pk }
-// "Mi perfil": botón flotante a la izquierda de la moneda de soporte (que flota
-// arriba a la derecha). Abre el mismo Web Component compartido en modo self.
-const myProfilePk = ref(null)
-function openMyProfile () { if (myPk && !myPk.startsWith('local-')) myProfilePk.value = myPk }
 
 // Volver unificado (@dotrino/nav): el botón físico / chevron
 // cierra el selector de tiles o el perfil antes de salir hacia dotrino.com.
+// (El modal "Mi perfil" lo abre y lo enlaza al "volver" el propio <dotrino-topbar>.)
 useBackLayer(showPicker)
 useBackLayer(profilePk, { onClose: () => { profilePk.value = null } })
-useBackLayer(myProfilePk, { onClose: () => { myProfilePk.value = null } })
 function bindProfile (el) { if (!el) return; ensureProfileProvider().then((p) => { if (p) el.provider = p }) }
 const profileTheme = {
   '--ccp-bg': '#1a1a1f', '--ccp-bg-2': '#23232b', '--ccp-bg-3': '#2a2a33', '--ccp-bg-4': '#3a3a45',
@@ -45,6 +42,22 @@ const profileTheme = {
   '--ccp-accent': '#C10C3E', '--ccp-accent-2': '#9a0a31', '--ccp-gold': '#f5b301', '--ccp-derived': '#d49a00',
   '--ccp-online': '#4ade80', '--ccp-affinity': '#a78bfa', '--ccp-input-bg': '#15151a', '--ccp-radius': '12px',
 }
+
+// --- Topbar estándar del ecosistema (§5/§6.1) ---
+// El componente es DUEÑO del modal "Mi perfil": le pasamos los pilares que la
+// app ya tiene (identity + reputation) y él deriva pubkey, nombre y avatar del
+// perfil activo. Sin vault (modo standalone) quedan en null y el botón no abre
+// nada, igual que antes con el FAB.
+const topbarRef = ref(null)
+const identityInst = ref(null)
+const reputationInst = ref(null)
+watchEffect(() => {
+  const tb = topbarRef.value
+  if (!tb) return
+  tb.identity = identityInst.value
+  tb.reputation = reputationInst.value
+  tb.profileTheme = profileTheme
+})
 
 const canvasRef = ref(null)
 const status = ref('booting…')
@@ -140,6 +153,9 @@ onMounted(async () => {
   status.value = 'identity…'
   await initIdentity()
   myPk = getMyPubkey() || `local-${Math.random().toString(36).slice(2, 8)}`
+  // Cablea el topbar con los pilares ya inicializados (perfil + avatar).
+  identityInst.value = getIdentity()
+  reputationInst.value = getReputation()
 
   store = new LocalStore({ myPeerId: myPk })
 
@@ -194,15 +210,32 @@ onBeforeUnmount(() => {
 
 <template>
   <canvas ref="canvasRef" class="world"></canvas>
-  <!-- Sin header (canvas a pantalla completa): chevron de volver flotante
-       arriba a la derecha. @dotrino/nav -->
-  <dotrino-back floating style="left:auto;right:106px;top:14px;color:#e2e8f0;--cc-back-bg:rgba(15,23,42,.55);--cc-back-bg-hover:rgba(15,23,42,.8)"></dotrino-back>
-  <!-- "Mi perfil" flotante, justo a la izquierda de la moneda de soporte. -->
-  <button class="profile-fab" data-testid="my-profile" @click="openMyProfile" title="Mi perfil" aria-label="Mi perfil">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" />
-    </svg>
-  </button>
+  <!-- Barra superior estándar del ecosistema (§5): trae marca, "volver"
+       (@dotrino/nav), botón de perfil (§6.1) y moneda de support (§6). Antes
+       esto eran tres piezas sueltas colocadas a mano sobre el canvas. Se
+       superpone al mundo (que sigue a pantalla completa) en vez de empujarlo.
+
+       OJO con `:lang.attr` (no lo cambies a `lang="es"`): <dotrino-topbar> define
+       un getter `lang` de solo lectura que tapa la propiedad nativa del elemento.
+       Vue ve que `lang` existe en el elemento y lo asignaría como PROPIEDAD, la
+       asignación se pierde en silencio y el componente cae a 'auto' (idioma del
+       navegador). El modificador `.attr` fuerza setAttribute, que es lo que el
+       componente lee.
+
+       La UI del juego es solo en español, así que fijamos el idioma del chrome
+       compartido y ocultamos el toggle (`no-lang`, §9: apps de un solo idioma). -->
+  <dotrino-topbar
+    ref="topbarRef"
+    brand="GridGame"
+    icon="/icon.svg"
+    brand-href="./"
+    :lang.attr="'es'"
+    no-lang
+    profile
+    support-href="https://ko-fi.com/dotrino"
+    support-repo="imdotrino/dotrino-gridgame"
+    support-discord="https://discord.gg/D648uq7cth"
+  ></dotrino-topbar>
   <div class="hint">
     WASD · <b>Q</b> roca · <b>E</b> summon · <b>F</b> atacar · <b>T</b> tile picker
     <div class="status">{{ status }}</div>
@@ -226,34 +259,21 @@ onBeforeUnmount(() => {
     :name="shortPk(profilePk)"
     @cc-profile-close="profilePk = null"
   ></dotrino-profile>
-
-  <dotrino-profile
-    v-if="myProfilePk"
-    :ref="bindProfile"
-    modal
-    mode="self"
-    :style="profileTheme"
-    :pubkey="myProfilePk"
-    :name="shortPk(myProfilePk)"
-    @cc-profile-close="myProfilePk = null"
-  ></dotrino-profile>
 </template>
 
 <style scoped>
 .world { position: fixed; inset: 0; width: 100vw; height: 100vh; }
-/* "Mi perfil" flotante: a la izquierda de la moneda (right:14px) y a la derecha
-   del chevron de volver (right:106px). */
-.profile-fab {
-  position: fixed; top: 14px; right: 60px; z-index: 10;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px; padding: 0;
-  color: #e2e8f0; background: rgba(15,23,42,.55);
-  border: 1px solid rgba(255,255,255,.14); border-radius: 50%; cursor: pointer;
-  transition: background .15s;
+/* El topbar se superpone al canvas (el mundo sigue ocupando toda la pantalla),
+   con el mismo cristal oscuro que ya tenían las piezas flotantes y el carmesí
+   de la marca como acento. El componente no es sticky por sí solo (§5). */
+dotrino-topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  --dotrino-topbar-bg: rgba(15, 23, 42, .55);
+  --dotrino-topbar-border: rgba(255, 255, 255, .14);
+  --dotrino-topbar-text: #e2e8f0;
+  --dotrino-topbar-muted: #9a9aa8;
+  --dotrino-topbar-accent: #C10C3E;
 }
-.profile-fab:hover { background: rgba(15,23,42,.8); }
-.profile-fab svg { width: 20px; height: 20px; display: block; }
-@media (max-width: 480px) { .profile-fab { width: 32px; height: 32px; right: 54px; } }
 .hint {
   position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
   background: rgba(0,0,0,0.6); padding: 8px 14px; border-radius: 8px;
@@ -262,7 +282,8 @@ onBeforeUnmount(() => {
 .status { margin-top: 4px; opacity: 0.7; font-size: 11px; }
 
 .roster {
-  position: fixed; top: 12px; right: 12px;
+  /* Bajo el topbar (antes iba a top:12px, donde ahora está la barra). */
+  position: fixed; top: calc(env(safe-area-inset-top) + 70px); right: 12px;
   background: rgba(0,0,0,0.6); border-radius: 8px; padding: 8px;
   display: flex; flex-direction: column; gap: 4px; min-width: 120px; max-width: 200px;
 }

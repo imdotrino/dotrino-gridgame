@@ -9,12 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@dotrino/identity": "0.20.0",
+    "@dotrino/identity": "0.21.0",
     "@dotrino/nav": "0.2.1",
-    "@dotrino/profile": "0.3.1",
+    "@dotrino/profile": "0.13.0",
     "@dotrino/proxy-client": "0.6.3",
-    "@dotrino/reputation": "0.6.0",
-    "@dotrino/support": "0.4.1",
+    "@dotrino/reputation": "0.8.0",
+    "@dotrino/topbar": "0.3.0",
     "pinia": "^3.0.4",
     "uuid": "^13.0.0",
     "vue": "^3.5.25"
