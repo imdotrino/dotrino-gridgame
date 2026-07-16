@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@dotrino/identity": "0.10.0",
+    "@dotrino/identity": "0.20.0",
     "@dotrino/nav": "0.2.1",
     "@dotrino/profile": "0.3.1",
     "@dotrino/proxy-client": "0.6.3",
