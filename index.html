@@ -37,6 +37,12 @@
       "publisher": { "@type": "Organization", "name": "Dotrino", "url": "https://dotrino.com/" }
     }
     </script>
+  <!-- PWA (CONVENCIONES §3): manifiesto, tema e iconos de pantalla de inicio. -->
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GridGame" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
 </head>
 <body>
   <!-- La moneda de support, el "volver" y el botón de perfil los trae el
@@ -44,5 +50,13 @@
        app en src/App.vue. No se sueltan piezas aquí. -->
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
+  <script>
+    // Registro del service worker (§3): la app queda disponible sin conexión.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {})
+      })
+    }
+  </script>
 </body>
 </html>
