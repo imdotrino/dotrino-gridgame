@@ -27,6 +27,17 @@ export const messages = {
       connecting: 'conectando…',
       online: 'en línea',
       offline: 'sin conexión',
+      soloNoVault: 'partida de un jugador: sin tu perfil no se juega en red',
+    },
+    // Cuando a alguien no se le puede mandar nada porque no hay con qué protegerlo.
+    // Se dice en vez de callarlo: si no, ese jugador parece estar y no recibe nada.
+    unreachable: {
+      head: (n) => (n === 1 ? 'Un jugador no recibe lo tuyo:' : `${n} jugadores no reciben lo tuyo:`),
+      'no-encpub': 'su app todavía no publica con qué protegerlo.',
+      'encpub-unverified': 'lo que llegó de él no cuadra con su perfil.',
+      'no-encpub-support': 'el servidor por el que pasáis es antiguo.',
+      'no-peer-identity': 'aún no ha dicho quién es.',
+      unknown: 'no se pudo proteger el envío.',
     },
     // Recordatorio de teclas. Las letras (WASD, Q, E, F, T) son las teclas
     // físicas: no se traducen, solo lo que hace cada una.
@@ -65,6 +76,15 @@ export const messages = {
       connecting: 'connecting…',
       online: 'online',
       offline: 'offline',
+      soloNoVault: 'single player: without your profile there is no online play',
+    },
+    unreachable: {
+      head: (n) => (n === 1 ? 'One player is not getting what you do:' : `${n} players are not getting what you do:`),
+      'no-encpub': 'their app does not publish what it takes to protect it yet.',
+      'encpub-unverified': 'what came from them does not match their profile.',
+      'no-encpub-support': 'the server you go through is an old one.',
+      'no-peer-identity': 'they have not said who they are yet.',
+      unknown: 'the message could not be protected.',
     },
     hint: {
       move: 'to move',

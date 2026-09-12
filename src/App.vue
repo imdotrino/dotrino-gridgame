@@ -75,6 +75,23 @@ watchEffect(() => {
 })
 
 const canvasRef = ref(null)
+// Jugadores a los que NO se les puede sellar y por qué. Se enseña: quedarse callado
+// haría que el otro pareciera estar y no recibiera nada (§14: una incompatibilidad que
+// no se anuncia se vive como silencio).
+const unreachable = ref([])
+const unreachableText = computed(() => {
+  if (!unreachable.value.length) return ''
+  const code = unreachable.value[0].code
+  const motivo = t.value.unreachable[code] || t.value.unreachable.unknown
+  return t.value.unreachable.head(unreachable.value.length) + ' ' + motivo
+})
+function onNetEvent (e) {
+  if (e.kind === 'peer-unreachable') {
+    unreachable.value = [...unreachable.value.filter((u) => u.pk !== e.pk), { pk: e.pk, code: e.code }]
+  } else if (e.kind === 'peer-reachable' || e.kind === 'peer-offline') {
+    unreachable.value = unreachable.value.filter((u) => u.pk !== e.pk)
+  }
+}
 // El estado se guarda como CLAVE, no como texto ya traducido: así cambiar de
 // idioma retraduce también la línea de estado.
 const statusKey = ref('booting')
@@ -195,14 +212,29 @@ onMounted(async () => {
   window.addEventListener('resize', onResize)
 
   statusKey.value = 'connecting'
-  try {
-    link = new PeerLink({ store, repOfSync, url: import.meta.env.VITE_WS_URL || undefined })
-    await link.start(myPk)
-    combat = new CombatHost({ store, peerLink: link, myPubkey: myPk })
-    statusKey.value = 'online'
-  } catch (e) {
-    console.warn('proxy connect failed', e)
-    statusKey.value = 'offline'
+  // SIN BÓVEDA NO SE JUEGA EN RED. Lo que va por el cable es del jugador (dónde está,
+  // qué construye, a quién pega) y eso va sellado a la llave de cifrado del otro; sin
+  // identidad no hay con qué sellar ni con qué abrir. Mandarlo en claro «mientras
+  // tanto» sería el agujero que esto cierra, así que la partida es de un jugador y la
+  // pantalla lo dice (§4.1).
+  const vault = getIdentity()
+  if (!vault) {
+    statusKey.value = 'soloNoVault'
+  } else {
+    try {
+      link = new PeerLink({ store, identity: vault, repOfSync, url: import.meta.env.VITE_WS_URL || undefined })
+      link.subscribe(onNetEvent)
+      await link.start(myPk, vault)
+      combat = new CombatHost({ store, peerLink: link, myPubkey: myPk })
+      // Asidero para la prueba de punta a punta (`tests/sealed-net.e2e.mjs`): comprobar
+      // que por el cable no viaja nada legible exige preguntarle a la red por su token y
+      // provocar los fallos a propósito. No expone nada que no esté ya en la página.
+      window.gridgame = { link, store, myPk }
+      statusKey.value = 'online'
+    } catch (e) {
+      console.warn('[gridgame] network start failed', e)
+      statusKey.value = 'offline'
+    }
   }
 
   // Pre-warm rep cache para peers que descubramos.
@@ -261,6 +293,7 @@ onBeforeUnmount(() => {
     WASD {{ t.hint.move }} · <b>Q</b> {{ t.hint.rock }} · <b>E</b> {{ t.hint.summon }} ·
     <b>F</b> {{ t.hint.attack }} · <b>T</b> {{ t.hint.tiles }}
     <div class="status">{{ status }}</div>
+    <div v-if="unreachableText" class="status warn">{{ unreachableText }}</div>
   </div>
   <TilePicker v-if="showPicker" :lang="lang" @close="showPicker = false" />
 
@@ -303,6 +336,7 @@ dotrino-topbar {
   font-size: 12px; pointer-events: none; text-align: center;
 }
 .status { margin-top: 4px; opacity: 0.7; font-size: 11px; }
+.status.warn { opacity: 1; color: #ffcf6b; }
 
 .roster {
   /* Bajo el topbar (antes iba a top:12px, donde ahora está la barra). */

@@ -24,3 +24,39 @@ El eje del ecosistema **[Dotrino](https://dotrino.com)** es el **autohosteo** y 
 > Todo sobre infraestructura que tú controlas. Eso es autohosteo. Eso es soberanía digital.
 
 ---
+
+## La red: todo lo tuyo va sellado
+
+El proxio (`proxy.dotrino.com`) **enruta pero no cifra**. Lo que una partida manda es del
+jugador —dónde estás, qué construyes, a quién le pegas—, así que va dentro de un sobre
+hacia la llave de cifrado de la bóveda del destinatario (CONVENCIONES §4.1). El cliente
+arranca con `requireSealed: true`, que corta en las **dos** direcciones: ni manda ni
+acepta nada dirigido en claro.
+
+- **Sin bóveda no se juega en red.** No hay con qué sellar ni con qué abrir; la partida es
+  de un jugador y la pantalla lo dice, en vez de hablar en claro «mientras tanto».
+- **Lo único en claro es lo público por diseño**: el canal `gridgame` (que es la lista de
+  quién está jugando, y va sin datos) y el **saludo del transporte** (`helloTo`), que
+  lleva una llave pública que el proxio ya tiene atada a esa conexión desde `identify`.
+  Es lo que dice de quién es cada token: sin eso no hay a quién sellarle.
+- **A quien no se le puede sellar no se le manda nada**, y se ve en pantalla con su motivo
+  (`no-encpub`, `encpub-unverified`, `no-encpub-support`). Callarlo dejaría a ese jugador
+  en la lista sin recibir nada.
+
+## Pruebas
+
+```bash
+npm test             # unitarias, sin DOM ni red (mundo, DSL, store)
+npm run test:e2e     # punta a punta: DOS navegadores de verdad por el proxio real
+```
+
+`tests/sealed-net.e2e.mjs` es la que responde la pregunta que importa: **graba todo lo que
+entra y sale por el socket en los dos extremos** y comprueba que ahí no aparecen ni las
+posiciones ni los objetos; que la partida funciona (uno se mueve, construye, y le aparece
+al otro); y que el fallo se distingue por `code` sin caer nunca a mandar en claro.
+
+```bash
+npx playwright install chromium
+npm run build && npm run preview -- --port 4181 &
+npm run test:e2e                  # o GRIDGAME_BASE=https://gridgame.dotrino.com/
+```
