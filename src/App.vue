@@ -51,12 +51,6 @@ function openPeer (pk) { if (pk && pk !== myPk) profilePk.value = pk }
 useBackLayer(showPicker)
 useBackLayer(profilePk, { onClose: () => { profilePk.value = null } })
 function bindProfile (el) { if (!el) return; ensureProfileProvider().then((p) => { if (p) el.provider = p }) }
-const profileTheme = {
-  '--ccp-bg': '#1a1a1f', '--ccp-bg-2': '#23232b', '--ccp-bg-3': '#2a2a33', '--ccp-bg-4': '#3a3a45',
-  '--ccp-border': '#3a3a45', '--ccp-text': '#eee', '--ccp-muted': '#9a9aa8',
-  '--ccp-accent': '#C10C3E', '--ccp-accent-2': '#9a0a31', '--ccp-gold': '#f5b301', '--ccp-derived': '#d49a00',
-  '--ccp-online': '#4ade80', '--ccp-affinity': '#a78bfa', '--ccp-input-bg': '#15151a', '--ccp-radius': '12px',
-}
 
 // --- Topbar estándar del ecosistema (§5/§6.1) ---
 // El componente es DUEÑO del modal "Mi perfil": le pasamos los pilares que la
@@ -71,7 +65,6 @@ watchEffect(() => {
   if (!tb) return
   tb.identity = identityInst.value
   tb.reputation = reputationInst.value
-  tb.profileTheme = profileTheme
 })
 
 const canvasRef = ref(null)
@@ -283,7 +276,7 @@ onBeforeUnmount(() => {
     icon="/icon.svg"
     brand-href="./"
     :lang.attr="lang"
-    profile
+    profile theme
     support-href="https://ko-fi.com/dotrino"
     support-repo="imdotrino/dotrino-gridgame"
     support-discord="https://discord.gg/D648uq7cth"
@@ -310,7 +303,6 @@ onBeforeUnmount(() => {
     modal
     mode="edit"
     :lang.attr="lang"
-    :style="profileTheme"
     :pubkey="profilePk"
     :name="shortPk(profilePk)"
     @cc-profile-close="profilePk = null"
@@ -324,11 +316,6 @@ onBeforeUnmount(() => {
    de la marca como acento. El componente no es sticky por sí solo (§5). */
 dotrino-topbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-  --dotrino-topbar-bg: rgba(15, 23, 42, .55);
-  --dotrino-topbar-border: rgba(255, 255, 255, .14);
-  --dotrino-topbar-text: #e2e8f0;
-  --dotrino-topbar-muted: #9a9aa8;
-  --dotrino-topbar-accent: #C10C3E;
 }
 .hint {
   position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);

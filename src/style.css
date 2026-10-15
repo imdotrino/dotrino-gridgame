@@ -1,2 +1,4 @@
-html, body, #app { margin: 0; padding: 0; height: 100%; background: #111; color: #eee; font-family: system-ui, sans-serif; }
+/* El mundo del juego es un lienzo oscuro a pantalla completa y sus colores son del juego;
+   la barra, las tarjetas y las fuentes son las del ecosistema (@dotrino/theme, §5). */
+html, body, #app { margin: 0; padding: 0; height: 100%; background: #111; color: #eee; font-family: var(--dt-font); }
 canvas { display: block; image-rendering: pixelated; }
