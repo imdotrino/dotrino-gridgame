@@ -11,8 +11,10 @@
 //    instancia su propia copia local.
 
 import { makeObject } from './objects/standard.js'
+
+const HEARTBEAT_MS = 3000
 import {
-  THREAT_RADIUS, DESPAWN_RADIUS, STEP_MS, ATTACK_MS, STRUCTURE_HP, PROVOKE_RADIUS, WANDER_MS, packGone,
+  THREAT_RADIUS, DESPAWN_RADIUS, STEP_MS, ATTACK_MS, STRUCTURE_HP, PROVOKE_RADIUS, WANDER_MS, packGone, inMemoryZone,
   chebyshev, structuresNear, threatFor, spawnSpot, makePack, farFromAll, chooseTarget, mustReturn, stepToward, wanderStep
 } from './world/threat.js'
 
@@ -65,7 +67,9 @@ export class CombatHost {
   tick (now, { player, rep, isPassable, others = [], playerSafe = false, screen = null }) {
     // Los grupos que salieron de pantalla (y quedaron lejos) se van, y dejan sitio: el
     // siguiente puede salir ya, sin esperar el intervalo.
-    if (this._dropGonePacks(player, screen)) this.nextSpawnAt = Math.min(this.nextSpawnAt, now)
+    if (this._dropGonePacks([player, ...others], screen)) this.nextSpawnAt = Math.min(this.nextSpawnAt, now)
+    this._forgetFarForeign(now, player, screen)
+    this._heartbeat(now)
     const monsters = this.myMonsters()
     const structures = structuresNear(this.store.inRect(player.x - THREAT_RADIUS, player.y - THREAT_RADIUS, player.x + THREAT_RADIUS, player.y + THREAT_RADIUS), this.myPubkey, player)
     // rep null = todavía no se sabe qué dice la red de este jugador: no se inventa una
@@ -82,6 +86,33 @@ export class CombatHost {
     }
 
     for (const m of monsters) this._act(m, now, player, structures, isPassable, playerSafe)
+  }
+
+  /**
+   * MEMORIA POR JUGADOR: los monstruos de OTROS fuera de mi zona de memoria (2× pantalla)
+   * se olvidan aquí (solo en mi memoria, no para nadie más). No se pierde nada: su dueño
+   * los reenvía cada HEARTBEAT_MS, así que al volver reaparecen donde estén.
+   */
+  _forgetFarForeign (now, player, screen) {
+    if (!screen || now - (this._lastForgetAt || 0) < 1000) return
+    this._lastForgetAt = now
+    for (const o of this.store.inRect(-Infinity, -Infinity, Infinity, Infinity)) {
+      if (o.type !== 'enemy' || o.creator === this.myPubkey || !o.pos) continue
+      if (!inMemoryZone(o.pos, player, screen)) this.store.remove(o.id)
+    }
+  }
+
+  /**
+   * Cada HEARTBEAT_MS reenvío mis monstruos aunque no se hayan movido. Sin esto, un
+   * monstruo quieto no le llegaba a quien se conectó después, ni a quien lo olvidó por
+   * alejarse. Repartido: un tercio cada vez, para no mandar todo de golpe.
+   */
+  _heartbeat (now) {
+    if (!this.peerLink || now - (this._lastBeatAt || 0) < HEARTBEAT_MS / 3) return
+    this._lastBeatAt = now
+    this._beat = ((this._beat || 0) + 1) % 3
+    const mine = this.myMonsters()
+    for (let i = this._beat; i < mine.length; i += 3) this.peerLink.broadcastObjectState(mine[i])
   }
 
   /** Borra (para todos) los grupos que se fueron. Devuelve si borró alguno. */

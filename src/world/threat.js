@@ -100,9 +100,16 @@ export function makePack (center, threat, rand, isPassable, players = []) {
   return out
 }
 
+/** ¿Está `p` dentro de la zona de memoria (2× pantalla) alrededor de `center`? */
+export function inMemoryZone (p, center, screen) {
+  if (!screen) return false
+  return Math.abs(p.x - center.x) <= screen.halfW * MEMORY_FACTOR && Math.abs(p.y - center.y) <= screen.halfH * MEMORY_FACTOR
+}
+
 /**
- * ¿Se ha ido el grupo? Todos sus miembros fuera de la ZONA DE MEMORIA (el doble de la
- * pantalla, MEMORY_FACTOR) Y a más de PACK_GONE_DIST del jugador.
+ * ¿Se ha ido el grupo? Para TODOS los jugadores (`player` puede ser uno o una lista):
+ * todos sus miembros fuera de su ZONA DE MEMORIA (el doble de la pantalla,
+ * MEMORY_FACTOR) Y a más de PACK_GONE_DIST. Mientras esté en la zona de alguien, se queda.
  *   - El doble, y no la pantalla justa: un grupo que acabas de dejar atrás sigue ahí si das
  *     la vuelta. Si se borrara al salir del borde, volver dos pasos daría otro distinto.
  *   - La distancia: en un teléfono la pantalla es estrecha y los grupos APARECEN ya fuera
@@ -112,14 +119,9 @@ export function makePack (center, threat, rand, isPassable, players = []) {
  */
 export function packGone (members, player, screen) {
   if (!members.length) return true
-  const zw = screen ? screen.halfW * MEMORY_FACTOR : 0
-  const zh = screen ? screen.halfH * MEMORY_FACTOR : 0
-  return members.every((m) => {
-    const dx = Math.abs(m.pos.x - player.x)
-    const dy = Math.abs(m.pos.y - player.y)
-    const outside = !screen || dx > zw || dy > zh
-    return outside && chebyshev(m.pos, player) > PACK_GONE_DIST
-  })
+  const players = Array.isArray(player) ? player : [player]
+  return members.every((m) => players.every((p) =>
+    !inMemoryZone(m.pos, p, screen) && chebyshev(m.pos, p) > PACK_GONE_DIST))
 }
 
 /** Ningún jugador a menos de MIN_SPAWN_DIST: en una zona con mucha gente no aparecen. */

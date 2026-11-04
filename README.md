@@ -91,10 +91,14 @@ Aparecen solos, en **grupos**, alrededor de cada jugador (`src/world/threat.js`,
 - **Ira** ∈ [0, 1]: la distancia a la que te ven es `ira × 10` casillas. Con ira 0 no
   atacan a nadie hasta que les pegas; pegarle a uno enfada a todo su grupo cercano. Sin
   nada a la vista, deambulan cerca de donde aparecieron.
-- **Zona de memoria = 2× la pantalla**: un grupo con todos sus miembros fuera de ella y a
-  más de 16 casillas se elimina para todos, y el siguiente puede salir enseguida. El doble
-  y no la pantalla justa: si das la vuelta, el grupo que dejaste atrás sigue ahí. La
-  distancia hace falta en el teléfono, donde los grupos ya aparecen fuera de pantalla.
+- **Zona de memoria = 2× la pantalla, por jugador**: un grupo con todos sus miembros fuera
+  de la zona de TODOS los jugadores (y a más de 16 casillas) se elimina para todos, y el
+  siguiente puede salir enseguida. El doble y no la pantalla justa: si das la vuelta, el
+  grupo que dejaste atrás sigue ahí. La distancia hace falta en el teléfono, donde los
+  grupos ya aparecen fuera de pantalla.
+- **Los monstruos de los demás** fuera de tu zona se olvidan en tu memoria (no para nadie
+  más), y su dueño los reenvía cada 3 s aunque estén quietos: al volver reaparecen donde
+  estén, y quien llega tarde ve los que ya había.
 - **Correa**: ninguno persigue nada a más de 16 casillas de la casa de su grupo, ni
   provocado. Si lo sacas de ahí, se rinde, se calma y vuelve andando.
 - **Qué tan fuertes**: tu reputación tal como la ve la red (el registro compartido). No hay
@@ -116,6 +120,15 @@ Aparecen solos, en **grupos**, alrededor de cada jugador (`src/world/threat.js`,
 Cada uno manda su posición sellada (`player_pos`), hasta 5 veces por segundo al moverse y
 cada 3 s quieto. Se dibujan con el mismo personaje, interpolando entre una posición y la
 siguiente, y es lo que los monstruos miran para no aparecer cerca de nadie.
+
+## Quién está en mi host
+
+Un jugador está en mi host mientras tenga **vínculo** conmigo: a 40 casillas o menos de mí, o
+de alguno de mis monstruos (`INTEREST_RADIUS`, `src/net/PeerLink.js`). Sin saber dónde está,
+cuenta como que sí. Fuera de mi host no se le manda lo mío (monstruos, objetos), solo mi
+posición cada 5 s, para que los dos notemos cuándo volvemos a estar cerca; al volver a
+entrar se le manda todo lo mío de una vez. Así también le llega todo a quien se conecta
+tarde.
 
 ## Volver a donde estabas
 

@@ -12,6 +12,7 @@ import { actorRow, idleFrame, phaseOf } from '../src/render/actors.js'
 import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, makePack, chooseTarget, sightOf, wanderStep, ROLES, MIN_SPAWN_DIST, farFromAll, packGone, PACK_GONE_DIST, LEASH_RADIUS, mustReturn, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
 import { CombatHost } from '../src/combat.js'
 import { PositionSaver, loadPosition, POS_THREAD } from '../src/save.js'
+import { PeerLink, INTEREST_RADIUS } from '../src/net/PeerLink.js'
 import { PlayerLife, MAX_HP, RESPAWN_MS, PROTECT_MS } from '../src/world/life.js'
 
 let passed = 0, failed = 0
@@ -273,6 +274,57 @@ eq('en el teléfono, fuera del doble y lejos, se va', packGone([{ pos: { x: PACK
   const now2 = gh.myMonsters()
   truthy('el grupo viejo se fue', now2.every((m) => m.payload.pack !== firstPack))
   truthy('y salió otro enseguida, sin esperar el intervalo', now2.length > 0)
+}
+
+console.log('12e) Memoria por jugador')
+eq('un grupo en la zona de OTRO jugador se queda', packGone([{ pos: { x: 0, y: 40 } }], [{ x: 0, y: 0 }, { x: 0, y: 45 }], desk), false)
+eq('fuera de la zona de todos, se va', packGone([{ pos: { x: 0, y: 40 } }], [{ x: 0, y: 0 }, { x: 0, y: -40 }], desk), true)
+{
+  const ms = new LocalStore({ myPeerId: 'me' })
+  const sent = []
+  const fakeLink = { subscribe: () => () => {}, broadcastObjectState: (o) => sent.push(o.id), broadcastObjectGone: () => {} }
+  const mh = new CombatHost({ store: ms, myPubkey: 'me', onPlayerHit: () => {}, rand: rnd, peerLink: fakeLink })
+  ms.upsert({ id: 'bob-near', type: 'enemy', creator: 'bob', ts: 1, pos: { x: 5, y: 0 }, payload: {} }, { creatorOnline: true })
+  ms.upsert({ id: 'bob-far', type: 'enemy', creator: 'bob', ts: 1, pos: { x: 0, y: 40 }, payload: {} }, { creatorOnline: true })
+  ms.upsert({ id: 'bob-rock', type: 'prop', creator: 'bob', ts: 1, pos: { x: 0, y: 40 }, payload: { kind: 'rock' } }, { creatorOnline: true })
+  mh.tick(5000, { player: { x: 0, y: 0 }, rep: null, isPassable: () => true, screen: desk })
+  eq('olvido los monstruos ajenos fuera de mi zona', ms.get('bob-far'), null)
+  truthy('pero no los que veo, ni sus construcciones', !!ms.get('bob-near') && !!ms.get('bob-rock'))
+  // Latido: mis monstruos se reenvían aunque estén quietos.
+  ms.upsert({ id: 'mine1', type: 'enemy', creator: 'me', ts: 1, pos: { x: 3, y: 0 }, payload: { name: 'slime', pack: 'p1', home: { x: 3, y: 0 }, aggro: 0 } })
+  sent.length = 0
+  for (let t = 6000; t <= 9000; t += 100) mh.tick(t, { player: { x: 0, y: 0 }, rep: null, isPassable: () => false, screen: desk })
+  truthy('mi monstruo quieto se reenvía (latido)', sent.includes('mine1'))
+}
+
+console.log('12f) Salir de mi host cuando no queda vínculo')
+{
+  const st = new LocalStore({ myPeerId: 'me' })
+  const sent = []
+  const pl = Object.create(PeerLink.prototype)
+  Object.assign(pl, {
+    store: st, myPubkey: 'me', myToken: 'tme', unreachable: new Map(), _listeners: new Set(),
+    peers: new Map([['bob', { token: 'tbob' }]]), playerPositions: new Map(), linked: new Set(), _farPosAt: new Map(), myPos: null,
+    _sendSealed: (pk, token, msg) => sent.push(`${pk}:${msg.type}:${msg.obj?.id || ''}`)
+  })
+  st.upsert({ id: 'myrock', type: 'prop', creator: 'me', ts: 1, pos: { x: 1, y: 0 }, payload: { kind: 'rock' } })
+  pl.broadcastPosition(0, 0, 0, false)
+  truthy('sin saber dónde está, está en mi host y recibe lo mío', pl.linked.has('bob') && sent.includes('bob:object_state:myrock'))
+  pl.playerPositions.set('bob', { x: INTEREST_RADIUS + 5, y: 0, at: Date.now() })
+  sent.length = 0
+  pl.broadcastPosition(0, 0, 0, false)
+  eq('lejos y sin monstruos míos cerca: sale de mi host', pl.linked.has('bob'), false)
+  pl.broadcastObjectState({ id: 'x', creator: 'me', pos: { x: 0, y: 0 } })
+  truthy('fuera de mi host no recibe mis objetos', !sent.some((m) => m.includes('object_state')))
+  truthy('pero sí mi posición, de vez en cuando', sent.includes('bob:player_pos:'))
+  sent.length = 0
+  pl.broadcastPosition(0, 0, 0, true)
+  eq('no a cada paso', sent.filter((m) => m.includes('player_pos')).length, 0)
+  // Un monstruo mío cerca de él: vuelve a haber vínculo, y le mando todo lo mío.
+  st.upsert({ id: 'mymob', type: 'enemy', creator: 'me', ts: 1, pos: { x: INTEREST_RADIUS + 2, y: 0 }, payload: {} })
+  pl.broadcastPosition(0, 0, 0, false)
+  truthy('un monstruo mío cerca de él lo mantiene en mi host', pl.linked.has('bob'))
+  truthy('al volver recibe todo lo mío de una vez', sent.includes('bob:object_state:myrock') && sent.includes('bob:object_state:mymob'))
 }
 
 console.log('13) Guardar la posición no inunda la bóveda')

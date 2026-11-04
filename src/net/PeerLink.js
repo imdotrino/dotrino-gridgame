@@ -32,6 +32,14 @@ const DISCOVERY_MS = 5000
 // un hecho permanente (se arregla en cuanto actualice su app), y preguntar en cada
 // fotograma sería una tormenta de peticiones.
 const RETRY_UNREACHABLE_MS = 30000
+// INTERÉS (dueño, 2026-11-04): un jugador sale de mi host cuando ya no tiene ningún vínculo
+// conmigo: ni está cerca de mí ni cerca de ninguno de mis monstruos. Fuera, no se le manda
+// lo mío (monstruos, objetos), solo mi posición de vez en cuando, para que los dos sepamos
+// cuándo volvemos a estar cerca. Al volver a entrar se le manda todo lo mío de una vez.
+export const INTEREST_RADIUS = 40
+const FAR_POS_EVERY_MS = 5000
+const POS_STALE_MS = 15000
+const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
 
 export class PeerLink {
   constructor ({ store, identity, repOfSync, url } = {}) {
@@ -44,6 +52,9 @@ export class PeerLink {
     // Dónde está cada jugador (pubkey → { x, y, facing, walking, at }). Lo usan el dibujo y
     // los monstruos: no aparecen cerca de NINGÚN jugador.
     this.playerPositions = new Map()
+    this.myPos = null
+    this.linked = new Set()       // pubkeys en mi host (con vínculo)
+    this._farPosAt = new Map()    // pubkey → última vez que le mandé mi posición estando lejos
 
     this.client = getWebSocketProxyClient()
     if (url) this.client.updateConfig({ url })
@@ -129,9 +140,56 @@ export class PeerLink {
     this._sendToAll({ type: 'object_state', obj, ts: Date.now() })
   }
 
-  /** Dónde estoy. Va sellado como todo lo demás: la posición es del jugador. */
+  /**
+   * Dónde estoy. Va sellado como todo lo demás: la posición es del jugador. A quien está
+   * en mi host, siempre; a quien no, cada FAR_POS_EVERY_MS (para notar que se acerca).
+   */
   broadcastPosition (x, y, facing, walking) {
-    this._sendToAll({ type: 'player_pos', x, y, facing, walking: !!walking, ts: Date.now() })
+    this.myPos = { x, y }
+    this._refreshLinks()
+    const msg = { type: 'player_pos', x, y, facing, walking: !!walking, ts: Date.now() }
+    const now = Date.now()
+    for (const [pubkey, peer] of this.peers) {
+      if (!peer.token || peer.token === this.myToken) continue
+      if (!this.linked.has(pubkey)) {
+        if (now - (this._farPosAt.get(pubkey) || 0) < FAR_POS_EVERY_MS) continue
+        this._farPosAt.set(pubkey, now)
+      }
+      this._sendSealed(pubkey, peer.token, msg)
+    }
+  }
+
+  /**
+   * ¿Tiene vínculo conmigo? Cerca de mí, o cerca de alguno de mis monstruos. Sin saber
+   * dónde está (todavía no habló, o hace rato que no) se cuenta como que sí: callarle a
+   * alguien por no saber dónde está sería dejarlo sin ver nada.
+   */
+  isLinked (pk) {
+    const pos = this.playerPositions.get(pk)
+    if (!pos || Date.now() - pos.at > POS_STALE_MS || !this.myPos) return true
+    if (cheb(pos, this.myPos) <= INTEREST_RADIUS) return true
+    for (const o of this._mine()) if (o.type === 'enemy' && o.pos && cheb(o.pos, pos) <= INTEREST_RADIUS) return true
+    return false
+  }
+
+  _mine () {
+    return this.store.inRect(-Infinity, -Infinity, Infinity, Infinity).filter((o) => o.creator === this.myPubkey && o.pos)
+  }
+
+  /** Recalcula quién está en mi host; a quien entra se le manda todo lo mío. */
+  _refreshLinks () {
+    for (const [pubkey, peer] of this.peers) {
+      if (!peer.token || peer.token === this.myToken) continue
+      const now = this.isLinked(pubkey)
+      if (now && !this.linked.has(pubkey)) {
+        this.linked.add(pubkey)
+        for (const obj of this._mine()) this._sendSealed(pubkey, peer.token, { type: 'object_state', obj, ts: Date.now() })
+        this._emit({ kind: 'peer-joined-host', pk: pubkey })
+      } else if (!now && this.linked.has(pubkey)) {
+        this.linked.delete(pubkey)
+        this._emit({ kind: 'peer-left-host', pk: pubkey })
+      }
+    }
   }
 
   /** Posiciones de los demás vistas en los últimos `maxAgeMs`. */
@@ -156,9 +214,11 @@ export class PeerLink {
     this._sendToAll({ type: 'enemy_died', id, loot_template: lootTemplates, pos, ts: Date.now() })
   }
 
+  /** A todos los que están en mi host (con vínculo). Los demás lo reciben al volver. */
   _sendToAll (msg) {
     for (const [pubkey, peer] of this.peers) {
       if (!peer.token || peer.token === this.myToken) continue
+      if (!this.linked.has(pubkey) && !this.isLinked(pubkey)) continue
       this._sendSealed(pubkey, peer.token, msg)
     }
   }
@@ -236,6 +296,7 @@ export class PeerLink {
           break
         }
         this.playerPositions.set(pk, { x: msg.x, y: msg.y, facing: (msg.facing | 0) & 3, walking: !!msg.walking, at: Date.now() })
+        this._refreshLinks()
         break
       case 'hit':
         // Solo el dueño autoritativo lo procesa. Re-emit como evento local.
@@ -273,6 +334,8 @@ export class PeerLink {
       this.tokenToPubkey.delete(token)
       this.peers.delete(pk)
       this.playerPositions.delete(pk)
+      this.linked.delete(pk)
+      this._farPosAt.delete(pk)
       this.unreachable.delete(pk)
       this.store.markCreatorOffline(pk)
       this._emit({ kind: 'peer-offline', pk })
