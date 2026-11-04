@@ -42,6 +42,11 @@ export class WorldView {
     this.others = []
     this.lifeState = 'alive' // 'alive' | 'dead' | 'protected'
     this._shown = new Map() // pk → { x, y } dibujado: se acerca suave a lo último recibido
+    // Lo mismo para los actores (monstruos, mercaderes): su posición cambia de casilla en
+    // casilla cada 0,6 s; dibujarlos ahí tal cual se ve a saltos.
+    this._actorShown = new Map() // id → { x, y, seen }
+    this._lastDrawAt = 0
+    this._dt = 16.7
     this._raf = null
   }
 
@@ -76,6 +81,9 @@ export class WorldView {
 
   draw () {
     const { ctx, canvas, tileSize, camera, ground } = this
+    const tDraw = performance.now()
+    this._dt = Math.min(100, this._lastDrawAt ? tDraw - this._lastDrawAt : 16.7)
+    this._lastDrawAt = tDraw
     const w = canvas.clientWidth
     const h = canvas.clientHeight
     const cols = Math.ceil(w / tileSize) + 2
@@ -157,6 +165,8 @@ export class WorldView {
         const r = resolveTile(arr, this.repOf)
         this._drawCell(r, px, py, tileSize)
       }
+      // Olvidar a los que ya no se dibujan (muertos, fuera de la pantalla).
+      for (const [id, sh] of this._actorShown) if (sh.seen !== this._lastDrawAt) this._actorShown.delete(id)
     }
 
     // Personaje propio, en el centro: sombra bajo los pies y el sprite encima.
@@ -171,8 +181,9 @@ export class WorldView {
         seen.add(o.pk)
         let d = this._shown.get(o.pk)
         if (!d || Math.abs(d.x - o.x) + Math.abs(d.y - o.y) > 6) d = { x: o.x, y: o.y }
-        d.x += (o.x - d.x) * 0.25
-        d.y += (o.y - d.y) * 0.25
+        const k = 1 - Math.exp(-this._dt / 60) // ~ el 25 % por fotograma a 60 Hz, igual a cualquier fps
+        d.x += (o.x - d.x) * k
+        d.y += (o.y - d.y) * k
         this._shown.set(o.pk, d)
         const ox = pcx + (d.x - camera.x) * tileSize
         const oy = pcy + (d.y - camera.y) * tileSize
@@ -299,6 +310,17 @@ export class WorldView {
   /** Un actor: su sprite con sombra; sin sprite (o mientras carga), un rectángulo de su color. */
   _drawActor (a, px, py, ts) {
     const ctx = this.ctx
+    // Deslizarse hacia su casilla en vez de saltar: un paso dura 0,6 s, así que en ~0,2 s
+    // ya está casi en su sitio.
+    let sh = this._actorShown.get(a.id)
+    if (!sh || Math.abs(sh.x - a.pos.x) + Math.abs(sh.y - a.pos.y) > 3) sh = { x: a.pos.x, y: a.pos.y }
+    const k = 1 - Math.exp(-this._dt / 70)
+    sh.x += (a.pos.x - sh.x) * k
+    sh.y += (a.pos.y - sh.y) * k
+    sh.seen = this._lastDrawAt
+    this._actorShown.set(a.id, sh)
+    px += (sh.x - a.pos.x) * ts
+    py += (sh.y - a.pos.y) * ts
     const row = actorRow(a)
     if (row !== null && this.actors.ready) {
       // Tamaño según su papel en el grupo (esbirro más pequeño, líder y jefe más grandes),

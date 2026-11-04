@@ -193,17 +193,25 @@ function tryStep (dx, dy) {
   if (passableAt(view.camera.x, ny, view.ground, store).passable) view.camera.y = ny
 }
 
+// Velocidad en casillas por SEGUNDO, no por fotograma: antes eran 0,15 por fotograma, así
+// que a 144 Hz se corría el doble y a 30 fps (pestaña cargada, portátil ahorrando) se iba
+// a la mitad y a saltos. El paso de tiempo se topa en 50 ms para que una pausa larga
+// (cambiar de pestaña) no te teletransporte.
+const WALK_TILES_PER_S = 9
+let lastMoveAt = 0
 function tickMove () {
   if (!view) return
+  const tNow = performance.now()
+  const dt = Math.min(50, lastMoveAt ? tNow - lastMoveAt : 16.7) / 1000
+  lastMoveAt = tNow
   const here = passableAt(view.camera.x, view.camera.y, view.ground, store)
-  const base = 0.15
-  const speed = base * (here.passable ? here.speed : 1)
+  const speed = WALK_TILES_PER_S * dt * (here.passable ? here.speed : 1)
   let dx = 0, dy = 0
   if (keys.has('ArrowUp') || keys.has('w')) dy -= speed
   if (keys.has('ArrowDown') || keys.has('s')) dy += speed
   if (keys.has('ArrowLeft') || keys.has('a')) dx -= speed
   if (keys.has('ArrowRight') || keys.has('d')) dx += speed
-  const now = performance.now()
+  const now = tNow
   // Muerto no se mueve: espera el contador.
   if (life.isDead(now)) { dx = 0; dy = 0 }
   view.setMotion(dx, dy)
