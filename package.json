@@ -12,14 +12,14 @@
     "test:e2e": "node tests/sealed-net.e2e.mjs"
   },
   "dependencies": {
-    "@dotrino/identity": "0.117.2",
+    "@dotrino/identity": "0.135.0",
     "@dotrino/nav": "0.3.0",
-    "@dotrino/profile": "0.20.1",
-    "@dotrino/proxy-client": "0.36.1",
-    "@dotrino/reputation": "0.12.0",
-    "@dotrino/store": "0.12.3",
+    "@dotrino/profile": "0.21.1",
+    "@dotrino/proxy-client": "0.45.3",
+    "@dotrino/reputation": "0.12.4",
+    "@dotrino/store": "0.13.0",
     "@dotrino/theme": "0.1.0",
-    "@dotrino/topbar": "0.16.1",
+    "@dotrino/topbar": "0.17.0",
     "pinia": "^3.0.4",
     "uuid": "^13.0.0",
     "vue": "^3.5.25"

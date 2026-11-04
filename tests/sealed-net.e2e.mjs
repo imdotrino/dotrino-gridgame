@@ -138,8 +138,14 @@ check('el canal público ya no lleva la llave escrita dentro', !publishConDatos)
 const saludos = frames.uno.out.map((t) => { try { return JSON.parse(t) } catch (_) { return null } })
   .filter((f) => f?.message && String(f.message).includes('__cc_hello__'))
   .map((f) => JSON.parse(f.message))
-const saludoLimpio = saludos.length > 0 && saludos.every((s) => Object.keys(s).sort().join(',') === 'publickey,t')
-check('el saludo va en claro y SOLO lleva la llave pública', saludoLimpio, `${saludos.length} saludos`)
+// Desde proxy-client 0.45 el saludo lleva también `speaks`: lo que entiende ESA VERSIÓN del
+// cliente, igual para todos los que la usan. Se admite solo si es eso: una lista de cadenas.
+const saludoLimpio = saludos.length > 0 && saludos.every((s) => {
+  const keys = Object.keys(s).sort().join(',')
+  if (keys === 'publickey,t') return true
+  return keys === 'publickey,speaks,t' && Array.isArray(s.speaks) && s.speaks.every((x) => typeof x === 'string')
+})
+check('el saludo va en claro y SOLO lleva la llave pública (y lo que entiende la versión)', saludoLimpio, `${saludos.length} saludos`)
 
 // ---------- 4. el fallo se distingue, y nunca cae a claro ----------
 const sinIdentidad = await A.page.evaluate(async () => {
