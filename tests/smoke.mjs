@@ -9,7 +9,7 @@ import { makeObject, rulesFor } from '../src/objects/standard.js'
 import { LAYERS, layerOf, quadLayers, fullVariant } from '../src/render/terrain.js'
 import { facingFor, walkFrame } from '../src/render/player.js'
 import { actorRow, idleFrame, phaseOf } from '../src/render/actors.js'
-import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, makePack, chooseTarget, sightOf, wanderStep, ROLES, MIN_SPAWN_DIST, farFromAll, LEASH_RADIUS, mustReturn, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
+import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, makePack, chooseTarget, sightOf, wanderStep, ROLES, MIN_SPAWN_DIST, farFromAll, packGone, PACK_GONE_DIST, LEASH_RADIUS, mustReturn, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
 import { CombatHost } from '../src/combat.js'
 import { PositionSaver, loadPosition, POS_THREAD } from '../src/save.js'
 import { PlayerLife, MAX_HP, RESPAWN_MS, PROTECT_MS } from '../src/world/life.js'
@@ -247,10 +247,32 @@ const ls = new LocalStore({ myPeerId: 'me' })
 const lh = new CombatHost({ store: ls, myPubkey: 'me', onPlayerHit: () => {}, rand: rnd })
 ls.upsert({ id: 'w1', type: 'enemy', creator: 'me', ts: 1, pos: { x: 4, y: 0 }, payload: { name: 'slime', hp: 10, max_hp: 10, dmg: 1, aggro: 1, provoked: true, home: { x: 10, y: 0 } } })
 let lt = 1
-for (let i = 0; i < 20; i++) { lt += STEP_MS; lh.tick(lt, { player: { x: -14, y: 0 }, rep: null, isPassable: () => true }) }
+for (let i = 0; i < 20; i++) { lt += STEP_MS; lh.tick(lt, { player: { x: -14, y: 0 }, rep: null, isPassable: () => true, screen: { halfW: 30, halfH: 14 } }) }
 const back = ls.get('w1')
 truthy('vuelve a su casa', Math.max(Math.abs(back.pos.x - 10), Math.abs(back.pos.y)) <= 3)
 eq('y se calma', back.payload.provoked, false)
+
+console.log('12d) El grupo que sale de pantalla se va y deja sitio')
+const desk = { halfW: 30, halfH: 14 }
+const phone = { halfW: 6, halfH: 11 }
+eq('en pantalla no se va', packGone([{ pos: { x: 10, y: 0 } }], { x: 0, y: 0 }, desk), false)
+eq('fuera de pantalla y lejos, se va', packGone([{ pos: { x: 0, y: 20 } }, { pos: { x: 2, y: 21 } }], { x: 0, y: 0 }, desk), true)
+eq('si uno sigue en pantalla, el grupo se queda', packGone([{ pos: { x: 0, y: 20 } }, { pos: { x: 3, y: 10 } }], { x: 0, y: 0 }, desk), false)
+eq('en el teléfono, recién aparecido fuera de pantalla, NO se va', packGone([{ pos: { x: 12, y: 0 } }], { x: 0, y: 0 }, phone), false)
+eq('en el teléfono, ya lejos, se va', packGone([{ pos: { x: PACK_GONE_DIST + 1, y: 0 } }], { x: 0, y: 0 }, phone), true)
+{
+  const gs = new LocalStore({ myPeerId: 'me' })
+  const gh = new CombatHost({ store: gs, myPubkey: 'me', onPlayerHit: () => {}, rand: rnd })
+  let t = 1
+  gh.tick(t, { player: { x: 0, y: 0 }, rep: 0, isPassable: () => true, screen: desk })
+  const firstPack = gh.myMonsters()[0].payload.pack
+  // Me alejo: el grupo queda fuera de pantalla y lejos.
+  t += 100
+  gh.tick(t, { player: { x: 0, y: 60 }, rep: 0, isPassable: () => true, screen: desk })
+  const now2 = gh.myMonsters()
+  truthy('el grupo viejo se fue', now2.every((m) => m.payload.pack !== firstPack))
+  truthy('y salió otro enseguida, sin esperar el intervalo', now2.length > 0)
+}
 
 console.log('13) Guardar la posición no inunda la bóveda')
 const ops = []

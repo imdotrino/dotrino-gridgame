@@ -13,7 +13,8 @@
 // Todo aquí es puro (sin red, sin DOM, sin reloj): lo usa CombatHost y lo prueban los tests.
 
 export const THREAT_RADIUS = 8          // casillas: lo que cuenta como «cerca» y donde cazan
-export const DESPAWN_RADIUS = 26        // más lejos que esto, el monstruo se va
+export const DESPAWN_RADIUS = 40        // red de seguridad: más lejos que esto, un monstruo suelto se va
+export const PACK_GONE_DIST = 16        // un grupo fuera de pantalla Y más lejos que esto se elimina
 export const STEP_MS = 600              // un paso por casilla
 export const ATTACK_MS = 1000           // un golpe por segundo
 export const STRUCTURE_HP = 20          // vida de lo que construyes
@@ -96,6 +97,24 @@ export function makePack (center, threat, rand, isPassable, players = []) {
     })
   }
   return out
+}
+
+/**
+ * ¿Se ha ido el grupo? Todos sus miembros fuera de la pantalla (más un margen de una
+ * casilla) Y a más de PACK_GONE_DIST del jugador. Las dos cosas: en un teléfono la
+ * pantalla es estrecha y los grupos APARECEN ya fuera de ella (a 9–14 casillas); sin la
+ * distancia, se borrarían al nacer.
+ * @param {{pos:{x:number,y:number}}[]} members
+ * @param {{halfW:number, halfH:number}} screen media pantalla en casillas
+ */
+export function packGone (members, player, screen) {
+  if (!members.length) return true
+  return members.every((m) => {
+    const dx = Math.abs(m.pos.x - player.x)
+    const dy = Math.abs(m.pos.y - player.y)
+    const offscreen = !screen || dx > screen.halfW + 1 || dy > screen.halfH + 1
+    return offscreen && chebyshev(m.pos, player) > PACK_GONE_DIST
+  })
 }
 
 /** Ningún jugador a menos de MIN_SPAWN_DIST: en una zona con mucha gente no aparecen. */

@@ -91,6 +91,9 @@ Aparecen solos, en **grupos**, alrededor de cada jugador (`src/world/threat.js`,
 - **Ira** ∈ [0, 1]: la distancia a la que te ven es `ira × 10` casillas. Con ira 0 no
   atacan a nadie hasta que les pegas; pegarle a uno enfada a todo su grupo cercano. Sin
   nada a la vista, deambulan cerca de donde aparecieron.
+- **Al salir de pantalla, se van**: un grupo con todos sus miembros fuera de la pantalla y
+  a más de 16 casillas se elimina para todos, y el siguiente grupo puede salir enseguida.
+  La distancia hace falta en el teléfono, donde los grupos ya aparecen fuera de pantalla.
 - **Correa**: ninguno persigue nada a más de 16 casillas de la casa de su grupo, ni
   provocado. Si lo sacas de ahí, se rinde, se calma y vuelve andando.
 - **Qué tan fuertes**: tu reputación tal como la ve la red (el registro compartido). No hay

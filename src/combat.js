@@ -12,7 +12,7 @@
 
 import { makeObject } from './objects/standard.js'
 import {
-  THREAT_RADIUS, DESPAWN_RADIUS, STEP_MS, ATTACK_MS, STRUCTURE_HP, PROVOKE_RADIUS, WANDER_MS,
+  THREAT_RADIUS, DESPAWN_RADIUS, STEP_MS, ATTACK_MS, STRUCTURE_HP, PROVOKE_RADIUS, WANDER_MS, packGone,
   chebyshev, structuresNear, threatFor, spawnSpot, makePack, farFromAll, chooseTarget, mustReturn, stepToward, wanderStep
 } from './world/threat.js'
 
@@ -62,7 +62,10 @@ export class CombatHost {
    * @param {(x:number,y:number) => boolean} isPassable
    * @param {{x:number,y:number}[]} others posiciones de los demás jugadores conocidos
    */
-  tick (now, { player, rep, isPassable, others = [], playerSafe = false }) {
+  tick (now, { player, rep, isPassable, others = [], playerSafe = false, screen = null }) {
+    // Los grupos que salieron de pantalla (y quedaron lejos) se van, y dejan sitio: el
+    // siguiente puede salir ya, sin esperar el intervalo.
+    if (this._dropGonePacks(player, screen)) this.nextSpawnAt = Math.min(this.nextSpawnAt, now)
     const monsters = this.myMonsters()
     const structures = structuresNear(this.store.inRect(player.x - THREAT_RADIUS, player.y - THREAT_RADIUS, player.x + THREAT_RADIUS, player.y + THREAT_RADIUS), this.myPubkey, player)
     // rep null = todavía no se sabe qué dice la red de este jugador: no se inventa una
@@ -79,6 +82,26 @@ export class CombatHost {
     }
 
     for (const m of monsters) this._act(m, now, player, structures, isPassable, playerSafe)
+  }
+
+  /** Borra (para todos) los grupos que se fueron. Devuelve si borró alguno. */
+  _dropGonePacks (player, screen) {
+    const packs = new Map()
+    for (const m of this.myMonsters()) {
+      const k = m.payload.pack || m.id
+      if (!packs.has(k)) packs.set(k, [])
+      packs.get(k).push(m)
+    }
+    let dropped = false
+    for (const members of packs.values()) {
+      if (!packGone(members, player, screen)) continue
+      for (const m of members) {
+        this.store.remove(m.id)
+        this.peerLink?.broadcastObjectGone(m.id)
+      }
+      dropped = true
+    }
+    return dropped
   }
 
   /** Un grupo entero: comparten `pack` y una casa (`home`) de la que no se alejan tranquilos. */
