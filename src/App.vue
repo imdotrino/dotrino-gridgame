@@ -83,6 +83,10 @@ const saveProblem = ref(false)
 let saver = null
 
 const canvasRef = ref(null)
+const stageRef = ref(null)
+// El alto real de la barra (una fila en escritorio, dos en móvil) para que el mundo
+// empiece justo debajo; y el canvas se redimensiona cuando cambia su caja.
+let layoutObserver = null
 // Jugadores a los que NO se les puede sellar y por qué. Se enseña: quedarse callado
 // haría que el otro pareciera estar y no recibiera nada (§14: una incompatibilidad que
 // no se anuncia se vive como silencio).
@@ -331,6 +335,13 @@ onMounted(async () => {
   view.playerHp = { hp: life.hp, max: MAX_HP }
   // Los monstruos existen también sin red: los hosteo yo. La red se le cuelga después.
   combat = new CombatHost({ store, myPubkey: myPk, onPlayerHit })
+  layoutObserver = new ResizeObserver(() => {
+    const tb = topbarRef.value
+    if (tb) document.documentElement.style.setProperty('--topbar-h', `${tb.getBoundingClientRect().height}px`)
+    view?.resize()
+  })
+  if (topbarRef.value) layoutObserver.observe(topbarRef.value)
+  layoutObserver.observe(stageRef.value)
   view.resize()
   view.start()
   moveRaf = requestAnimationFrame(tickMove)
@@ -379,6 +390,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  layoutObserver?.disconnect()
   view?.stop()
   link?.stop()
   combat?.destroy()
@@ -393,7 +405,6 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <canvas ref="canvasRef" class="world"></canvas>
   <!-- Barra superior estándar del ecosistema (§5): trae marca, "volver"
        (@dotrino/nav), botón de perfil (§6.1) y moneda de support (§6). Antes
        esto eran tres piezas sueltas colocadas a mano sobre el canvas. Se
@@ -407,7 +418,10 @@ onBeforeUnmount(() => {
        componente lee.
 
        El toggle ES/EN del topbar es el ÚNICO selector de idioma de la app (§9):
-       él persiste la preferencia y nos avisa por 'dotrino-lang'. -->
+       él persiste la preferencia y nos avisa por 'dotrino-lang'.
+
+       El mundo va DEBAJO de la barra, no detrás: `.stage` empieza donde acaba la barra
+       (su alto real, que en móvil son dos filas, lo mide un ResizeObserver). -->
   <dotrino-topbar
     ref="topbarRef"
     brand="GridGame"
@@ -420,6 +434,8 @@ onBeforeUnmount(() => {
     support-discord="https://discord.gg/D648uq7cth"
     @dotrino-lang="onLang"
   ></dotrino-topbar>
+  <div ref="stageRef" class="stage">
+  <canvas ref="canvasRef" class="world"></canvas>
   <div class="hint">
     WASD {{ t.hint.move }} · <b>Q</b> {{ t.hint.rock }} · <b>M</b> {{ t.hint.merchant }} ·
     <b>F</b> {{ t.hint.attack }} · <b>T</b> {{ t.hint.tiles }}
@@ -433,14 +449,15 @@ onBeforeUnmount(() => {
     <div class="respawn-sub">{{ t.life.respawnIn }}</div>
   </div>
   <div v-else-if="protectedFor > 0" class="shield" data-testid="protected">🛡 {{ t.life.protected(protectedFor) }}</div>
-  <TilePicker v-if="showPicker" :lang="lang" @close="showPicker = false" />
-
   <div v-if="peers.length" class="roster">
     <div class="roster-title">{{ t.roster.title }}</div>
     <button v-for="pk in peers" :key="pk" class="roster-item" @click="openPeer(pk)" :title="t.roster.open">
       <span class="dot"></span>{{ shortPk(pk) }}
     </button>
   </div>
+  </div>
+  <TilePicker v-if="showPicker" :lang="lang" @close="showPicker = false" />
+
 
   <dotrino-profile
     v-if="profilePk"
@@ -455,10 +472,15 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.world { position: fixed; inset: 0; width: 100vw; height: 100vh; }
+.stage {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  top: var(--topbar-h, 56px);
+  overflow: hidden;
+}
+.world { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* Contador de reaparición: en el centro, sobre el personaje caído. */
 .respawn {
-  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -130%);
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -130%);
   text-align: center; color: #fff; pointer-events: none;
   text-shadow: 0 2px 6px rgba(0,0,0,0.8);
   font-family: var(--dt-font, inherit);
@@ -467,19 +489,18 @@ onBeforeUnmount(() => {
 .respawn-count { font-size: 56px; font-weight: 800; line-height: 1.1; }
 .respawn-sub { font-size: 14px; opacity: 0.9; }
 .shield {
-  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -260%);
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -260%);
   padding: 4px 10px; border-radius: 999px; pointer-events: none;
   background: rgba(0, 101, 140, 0.85); color: #fff; font-size: 13px; font-weight: 600;
 }
 
-/* El topbar se superpone al canvas (el mundo sigue ocupando toda la pantalla),
-   con el mismo cristal oscuro que ya tenían las piezas flotantes y el carmesí
-   de la marca como acento. El componente no es sticky por sí solo (§5). */
+/* La barra arriba, fija; el mundo empieza debajo (`.stage`). El componente no es
+   sticky por sí solo (§5). */
 dotrino-topbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 10;
 }
 .hint {
-  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
   background: rgba(0,0,0,0.6); padding: 8px 14px; border-radius: 8px;
   font-size: 12px; pointer-events: none; text-align: center;
 }
@@ -487,8 +508,7 @@ dotrino-topbar {
 .status.warn { opacity: 1; color: #ffcf6b; }
 
 .roster {
-  /* Bajo el topbar (antes iba a top:12px, donde ahora está la barra). */
-  position: fixed; top: calc(env(safe-area-inset-top) + 70px); right: 12px;
+  position: absolute; top: 12px; right: 12px;
   background: rgba(0,0,0,0.6); border-radius: 8px; padding: 8px;
   display: flex; flex-direction: column; gap: 4px; min-width: 120px; max-width: 200px;
 }

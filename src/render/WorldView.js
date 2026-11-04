@@ -94,6 +94,14 @@ export class WorldView {
     const tDraw = performance.now()
     this._dt = Math.min(100, this._lastDrawAt ? tDraw - this._lastDrawAt : 16.7)
     this._lastDrawAt = tDraw
+    // Fotogramas por segundo de verdad (los dibujados en el último segundo), para el HUD.
+    this._fpsCount = (this._fpsCount || 0) + 1
+    if (!this._fpsAt) this._fpsAt = tDraw
+    if (tDraw - this._fpsAt >= 1000) {
+      this.fps = Math.round(this._fpsCount * 1000 / (tDraw - this._fpsAt))
+      this._fpsCount = 0
+      this._fpsAt = tDraw
+    }
     const w = canvas.clientWidth
     const h = canvas.clientHeight
     const cols = Math.ceil(w / tileSize) + 2
@@ -244,7 +252,7 @@ export class WorldView {
     // HUD (etiquetas en el idioma activo, §9).
     const L = this.hudLabels() || HUD_FALLBACK
     const lines = [
-      `${L.pos}: ${camera.x.toFixed(1)}, ${camera.y.toFixed(1)}`,
+      `${this.fps ?? '–'} fps · ${L.pos}: ${camera.x.toFixed(1)}, ${camera.y.toFixed(1)}`,
       `${L.seed}: ${ground.seed}`
     ]
     if (this.store) {
