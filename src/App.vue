@@ -188,7 +188,7 @@ onMounted(async () => {
   store = new LocalStore({ myPeerId: myPk })
 
   view = new WorldView(canvasRef.value, {
-    tileSize: 28,
+    tileSize: 32,
     ground: new ProceduralGround(0xC10C3E),
     store,
     repOf: repOfSync,
@@ -196,6 +196,16 @@ onMounted(async () => {
     // cada frame lea las etiquetas del idioma activo.
     hudLabels: () => t.value.hud
   })
+  // Aparecer en tierra firme: la celda (0, 0) puede ser agua según la semilla.
+  // Espiral hacia fuera hasta la primera celda transitable.
+  spawn: for (let r = 0; r < 200; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+        if (passableAt(dx, dy, view.ground, store).passable) { view.camera.x = dx; view.camera.y = dy; break spawn }
+      }
+    }
+  }
   view.resize()
   view.start()
   moveRaf = requestAnimationFrame(tickMove)

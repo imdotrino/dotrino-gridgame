@@ -13,15 +13,28 @@ function hash32 (x, y, seed) {
   return h >>> 0
 }
 
-// Smooth noise: media de hash en celda + vecinos para evitar caos puro.
-function smooth (x, y, seed) {
-  let s = 0
-  for (let dx = -1; dx <= 1; dx++) {
-    for (let dy = -1; dy <= 1; dy++) {
-      s += hash32(x + dx, y + dy, seed)
-    }
+// Ruido de valor por octavas (fBm): manchas grandes y orgánicas en vez de confeti.
+// El dibujo no le pide nada al generador: el autotile de rejilla doble
+// (render/terrain.js) pinta sin cortes cualquier combinación de vecinos.
+function valueNoise (x, y, seed) {
+  const x0 = Math.floor(x), y0 = Math.floor(y)
+  const fx = x - x0, fy = y - y0
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy)
+  const a = hash32(x0, y0, seed), b = hash32(x0 + 1, y0, seed)
+  const c = hash32(x0, y0 + 1, seed), d = hash32(x0 + 1, y0 + 1, seed)
+  const top = a + (b - a) * u, bot = c + (d - c) * u
+  return (top + (bot - top) * v) / 0xFFFFFFFF
+}
+
+function fbm (x, y, seed, base = 24) {
+  let sum = 0, amp = 0.5, norm = 0, scale = 1 / base
+  for (let o = 0; o < 4; o++) {
+    sum += amp * valueNoise(x * scale, y * scale, seed + o * 1013)
+    norm += amp
+    amp *= 0.5
+    scale *= 2
   }
-  return (s / 9) / 0xFFFFFFFF
+  return sum / norm
 }
 
 export class ProceduralGround {
@@ -29,15 +42,20 @@ export class ProceduralGround {
     this.seed = seed | 0
   }
 
+  // Bioma por dos campos: ALTURA (agua → playa → tierras → colinas → roca) y
+  // HUMEDAD (en las tierras medias decide entre desierto, tierra seca y pradera).
   tileAt (x, y) {
-    const n = smooth(x, y, this.seed)
+    const n = fbm(x, y, this.seed)
+    const m = fbm(x, y, this.seed ^ 0x5bd1e995, 48)
     let type
-    if (n < 0.30) type = 'water'
-    else if (n < 0.40) type = 'sand'
-    else if (n < 0.70) type = 'grass'
-    else if (n < 0.85) type = 'dirt'
-    else type = 'stone'
-    return { type, n }
+    if (n < 0.33) type = 'water'
+    else if (n < 0.37) type = 'sand'
+    else if (n > 0.70) type = 'stone'
+    else if (n > 0.63) type = 'dirt'
+    else if (m < 0.38) type = 'sand'
+    else if (m < 0.44) type = 'dirt'
+    else type = 'grass'
+    return { type, n, m }
   }
 
   static colorFor (type) {

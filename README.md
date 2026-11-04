@@ -43,6 +43,23 @@ acepta nada dirigido en claro.
   (`no-encpub`, `encpub-unverified`, `no-encpub-support`). Callarlo dejaría a ese jugador
   en la lista sin recibir nada.
 
+## El mapa: biomas sin cortes
+
+- **Generador** (`src/world/ProceduralGround.js`): determinista por semilla, dos campos de
+  ruido por octavas. La **altura** da agua → playa → tierras → colinas → roca; la
+  **humedad** decide en las tierras medias entre desierto, tierra seca y pradera.
+- **Dibujo** (`src/render/terrain.js`): autotile de **rejilla doble**. El terreno es por
+  celda (lo usan colisión y velocidad), pero cada tile de pantalla va corrido medio tile y
+  mira las cuatro celdas de sus esquinas: 16 formas por terreno. Cubre islas de una celda,
+  tiras de una celda y contactos en diagonal, sin pedirle nada al generador.
+- **Capas**: agua < arena < hierba < tierra < roca. La capa más baja de las cuatro esquinas
+  va llena y cada una de encima se pinta con su forma. Un juego de 16 por terreno, no uno
+  por cada par de vecinos.
+- **Atlas** `public/terrain.png`: 16 px, fila = capa, columna = máscara (bits 1 NO, 2 NE,
+  4 SO, 8 SE); columnas 16 y 17 son variantes del tile lleno. `scripts/terrain/template.py`
+  genera la plantilla con las siluetas exactas que espera el motor, y
+  `scripts/terrain/draw.py` dibuja el arte y comprueba que no se aparta de ellas.
+
 ## Pruebas
 
 ```bash

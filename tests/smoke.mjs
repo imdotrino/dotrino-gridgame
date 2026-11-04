@@ -6,6 +6,7 @@ import { parseDSL } from '../src/dsl/parser.js'
 import { runRules } from '../src/dsl/interpreter.js'
 import { powerFor, capOnCraft } from '../src/world/power.js'
 import { makeObject, rulesFor } from '../src/objects/standard.js'
+import { LAYERS, layerOf, quadLayers, fullVariant } from '../src/render/terrain.js'
 
 let passed = 0, failed = 0
 function eq (label, a, b) {
@@ -92,6 +93,23 @@ eq('slime type=enemy', slime.type, 'enemy')
 eq('slime hp=10', slime.payload.hp, 10)
 const sr = rulesFor(slime)
 truthy('slime tiene rules pre-compiladas', sr.length > 0)
+
+console.log('9) Autotile de rejilla doble')
+eq('todo igual → un tile lleno', quadLayers([2, 2, 2, 2]), [{ layer: 2, mask: 15 }])
+eq('isla de una esquina (SE) sobre agua', quadLayers([0, 0, 0, 2]), [{ layer: 0, mask: 15 }, { layer: 1, mask: 8 }, { layer: 2, mask: 8 }])
+eq('contacto en diagonal', quadLayers([1, 0, 0, 1]), [{ layer: 0, mask: 15 }, { layer: 1, mask: 9 }])
+eq('tres terrenos', quadLayers([4, 2, 2, 3]), [{ layer: 2, mask: 15 }, { layer: 3, mask: 9 }, { layer: 4, mask: 1 }])
+let allMasks = true
+for (let a = 0; a < 5; a++) for (let b = 0; b < 5; b++) for (let c = 0; c < 5; c++) for (let d = 0; d < 5; d++) {
+  for (const { mask } of quadLayers([a, b, c, d])) if (mask < 1 || mask > 15) allMasks = false
+}
+truthy('toda combinación de 4 esquinas da máscaras 1..15 (sin cortes)', allMasks)
+truthy('todo tipo del generador tiene capa', ProceduralGround.TYPES.every((t) => LAYERS.includes(t) && layerOf(t) >= 0))
+const gg = new ProceduralGround(0xC10C3E)
+let unknown = 0
+for (let x = -200; x < 200; x += 7) for (let y = -200; y < 200; y += 7) if (!LAYERS.includes(gg.tileAt(x, y).type)) unknown++
+eq('el generador solo produce capas conocidas', unknown, 0)
+eq('variante determinista', fullVariant(12, -7), fullVariant(12, -7))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

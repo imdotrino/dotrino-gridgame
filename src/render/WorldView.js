@@ -1,6 +1,7 @@
 import { ProceduralGround } from '../world/ProceduralGround.js'
 import { resolveTile } from '../world/resolve.js'
 import { getSheet } from './tiles.js'
+import { TerrainAtlas, layerOf, quadLayers, fullVariant, FULL } from './terrain.js'
 
 // Render 2D. Dibuja:
 //   1) ground procedural como fondo.
@@ -23,6 +24,7 @@ export class WorldView {
     this.hudLabels = hudLabels || (() => HUD_FALLBACK)
     this.camera = { x: 0, y: 0 } // centro en coords de tile
     this.sheet = getSheet()
+    this.terrain = new TerrainAtlas()
     this._raf = null
   }
 
@@ -60,19 +62,54 @@ export class WorldView {
     const offX = w / 2 - (camera.x - cx) * tileSize - tileSize / 2
     const offY = h / 2 - (camera.y - cy) * tileSize - tileSize / 2
 
+    // Capa de cada celda visible (+1 de margen: los tiles de la rejilla doble
+    // asoman medio tile por cada lado).
+    const gw = cols + 2
+    const gh = rows + 2
+    const grid = new Uint8Array(gw * gh)
+    for (let j = 0; j < gh; j++) {
+      for (let i = 0; i < gw; i++) grid[j * gw + i] = layerOf(ground.tileAt(cx - 1 + i, cy - 1 + j).type)
+    }
+
+    if (this.terrain.ready) {
+      // Rejilla doble: el tile (i, j) tiene sus esquinas en el centro de las celdas
+      // (i, j), (i+1, j), (i, j+1), (i+1, j+1), así que se pinta medio tile corrido.
+      ctx.imageSmoothingEnabled = false
+      const corners = [0, 0, 0, 0]
+      for (let j = 0; j < gh - 1; j++) {
+        for (let i = 0; i < gw - 1; i++) {
+          corners[0] = grid[j * gw + i]
+          corners[1] = grid[j * gw + i + 1]
+          corners[2] = grid[(j + 1) * gw + i]
+          corners[3] = grid[(j + 1) * gw + i + 1]
+          const tx = cx - 1 + i
+          const ty = cy - 1 + j
+          const px = Math.floor(offX + (tx - cx) * tileSize + tileSize / 2)
+          const py = Math.floor(offY + (ty - cy) * tileSize + tileSize / 2)
+          for (const { layer, mask } of quadLayers(corners)) {
+            const col = mask === FULL ? fullVariant(tx, ty) : mask
+            this.terrain.draw(ctx, layer, col, px, py, tileSize)
+          }
+        }
+      }
+    } else {
+      // Mientras carga el atlas (o si no cargó: TerrainAtlas lo dice en consola),
+      // color plano por celda.
+      for (let j = 1; j < gh - 1; j++) {
+        for (let i = 1; i < gw - 1; i++) {
+          const t = ground.tileAt(cx - 1 + i, cy - 1 + j)
+          ctx.fillStyle = ProceduralGround.colorFor(t.type)
+          ctx.fillRect(Math.floor(offX + (i - 1) * tileSize), Math.floor(offY + (j - 1) * tileSize), tileSize, tileSize)
+        }
+      }
+    }
+
+    // Props procedurales, después de TODO el suelo: los tiles del suelo se solapan
+    // entre celdas y taparían medio objeto.
     for (let j = 0; j < rows; j++) {
       for (let i = 0; i < cols; i++) {
-        const tx = cx + i
-        const ty = cy + j
-        const t = ground.tileAt(tx, ty)
-        const px = Math.floor(offX + i * tileSize)
-        const py = Math.floor(offY + j * tileSize)
-        if (!this.sheet.draw(ctx, t.type, px, py, tileSize)) {
-          ctx.fillStyle = ProceduralGround.colorFor(t.type)
-          ctx.fillRect(px, py, tileSize, tileSize)
-        }
-        const proc = ground.proceduralObjectAt(tx, ty)
-        if (proc) this._drawProcedural(proc, px, py, tileSize)
+        const proc = ground.proceduralObjectAt(cx + i, cy + j)
+        if (proc) this._drawProcedural(proc, Math.floor(offX + i * tileSize), Math.floor(offY + j * tileSize), tileSize)
       }
     }
 
