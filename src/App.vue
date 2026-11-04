@@ -36,7 +36,13 @@ const peers = ref([])
 const profilePk = ref(null)
 let rosterTimer = null
 let _profileProvider = null
-function shortPk (pk) { const k = pk || ''; return k.length > 16 ? k.slice(0, 8) + '…' + k.slice(-4) : k }
+// La pubkey llega como JWK serializado ({"crv":…,"x":…}): se acorta su `x`, que es lo
+// que distingue a una llave de otra; recortar el JSON entero enseñaba '{"crv":"…'.
+function shortPk (pk) {
+  let k = pk || ''
+  if (k.startsWith('{')) { try { k = JSON.parse(k).x || k } catch { /* no es JWK: se acorta tal cual */ } }
+  return k.length > 12 ? k.slice(0, 6) + '…' + k.slice(-4) : k
+}
 async function ensureProfileProvider () {
   if (_profileProvider) return _profileProvider
   const reputation = getReputation()

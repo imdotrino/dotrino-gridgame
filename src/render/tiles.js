@@ -11,45 +11,41 @@ const STRIDE = 17 // 16px + 1px margen
 
 // Mapa kind → [col, row]. Identificados a mano viendo el sheet en crops zoomeados.
 // Tecla T abre el picker si quieres ajustar al gusto.
+// Revisado el 2026-11-04 contra la hoja, tile a tile. Lo que el pack no trae
+// (personajes, enemigos, espada) NO va aquí: sin entrada, WorldView dibuja su
+// forma de color, que se ve; un tile equivocado o vacío confunde o desaparece.
 export const TILE_MAP = {
-  // Ground base — fila 0 cols 5-8 es la "fila plana" que tilea sin bordes.
-  grass:     [5, 0],   // verde puro (tilea ✓)
+  // Suelo plano (el suelo del mapa lo pinta terrain.js; esto es para los
+  // modificadores de suelo que coloca un jugador).
+  grass:     [5, 0],
   grass_alt: [5, 1],
-  dirt:      [6, 0],   // marrón plano (tilea ✓)
-  stone:     [7, 0],   // gris/concreto plano (tilea ✓)
-  sand:      [8, 0],   // beige (tilea ✓)
-  water:     [3, 1],   // cyan puro centro de estanque (tilea ✓)
+  dirt:      [6, 0],
+  stone:     [7, 0],
+  sand:      [8, 0],
+  water:     [3, 1],
 
-  // Props/items procedurales y crafteados
-  rock:      [54, 0],  // pila de piedras grises
-  herb:      [37, 23], // hojas/flores moradas
-  apple:     [52, 15], // pollo cocinado (food placeholder)
-  tree:      [13, 9],  // árbol verde
-  sword:     [43, 16], // espada
+  // Objetos e ítems
+  rock:       [54, 21], // roca gris
+  herb:       [28, 10], // hojas
+  apple:      [56, 12], // muslo de pollo (el pack no trae manzana)
+  tree:       [13, 9],
+  prop_chest: [38, 10], // cofre
 
-  // Actores
-  character: [52, 16], // figura con capucha negra
-  npc:       [53, 16], // figura con cabello marrón
-  enemy:     [54, 18], // pila marrón puntiaguda (monstruo)
-
-  // Props específicos
-  prop_chest: [37, 10], // cofre
-
-  // Decor procedural por bioma
+  // Decoración procedural por bioma
   tree_green:      [13, 9],
   tree_orange:     [14, 9],
   pine_green:      [16, 9],
   bush_green:      [19, 9],
-  flowers_white:   [0, 9],
-  flowers_blue:    [0, 12],
-  flowers_orange:  [2, 8],
+  flowers_white:   [31, 9],
+  flowers_blue:    [28, 9],
+  flowers_orange:  [29, 9],
   mushroom_brown:  [48, 2],
-  rock_pile_brown: [54, 18],
+  rock_pile_brown: [55, 19],
   bush_small:      [22, 10],
   tree_dead:       [27, 9],
   cactus:          [22, 9],
-  rock_pile_gray:  [54, 20],
-  rock_green:      [55, 19]
+  rock_pile_gray:  [55, 21],
+  rock_green:      [54, 22]
 }
 
 class TileSheet {
