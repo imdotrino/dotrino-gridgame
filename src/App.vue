@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watchEffect } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watchEffect, shallowRef } from 'vue'
 import { messages, detectLang } from './i18n.js'
 import { WorldView } from './render/WorldView.js'
 import { ProceduralGround } from './world/ProceduralGround.js'
@@ -8,6 +8,7 @@ import { PeerLink } from './net/PeerLink.js'
 import { CombatHost } from './combat.js'
 import { initIdentity, getMyPubkey, getIdentity, getReputation, repOf, repOfSync, warmRep } from './identity.js'
 import { makeObject } from './objects/standard.js'
+import { openStore, loadPosition, PositionSaver } from './save.js'
 import { passableAt } from './world/collision.js'
 import TilePicker from './render/TilePicker.vue'
 import { createVaultProfileProvider } from '@dotrino/profile'
@@ -66,12 +67,19 @@ function bindProfile (el) { if (!el) return; ensureProfileProvider().then((p) =>
 const topbarRef = ref(null)
 const identityInst = ref(null)
 const reputationInst = ref(null)
+const userStore = shallowRef(null) // shallow: un Proxy de Vue rompe el postMessage al iframe del almacén
 watchEffect(() => {
   const tb = topbarRef.value
   if (!tb) return
   tb.identity = identityInst.value
   tb.reputation = reputationInst.value
+  // El punto del botón de perfil dice si lo del jugador está respaldado (§4).
+  if (userStore.value) tb.store = userStore.value
 })
+// Si la posición no se puede guardar, se dice: volver al origen sin explicación
+// parece un fallo del juego.
+const saveProblem = ref(false)
+let saver = null
 
 const canvasRef = ref(null)
 // Jugadores a los que NO se les puede sellar y por qué. Se enseña: quedarse callado
@@ -109,11 +117,14 @@ function onKeyDown (e) {
   // Acciones rápidas
   if (e.key === 'q') tryPlaceRock()
   if (e.key === 'e') trySummonSlime()
+  if (e.key === 'm') tryPlaceMerchant()
   if (e.key === 'f') tryAttackNearest()
   if (e.key === 't') showPicker.value = !showPicker.value
   if (e.key === 'Escape') showPicker.value = false
 }
 function onKeyUp (e) { keys.delete(e.key) }
+// Al ocultarse la pestaña (recargar, cerrar, cambiar de app) se escribe lo pendiente.
+function onHide () { if (document.visibilityState === 'hidden') saver?.flush() }
 function onResize () { view?.resize() }
 
 function tryStep (dx, dy) {
@@ -135,7 +146,10 @@ function tickMove () {
   if (keys.has('ArrowLeft') || keys.has('a')) dx -= speed
   if (keys.has('ArrowRight') || keys.has('d')) dx += speed
   view.setMotion(dx, dy)
-  if (dx || dy) tryStep(dx, dy)
+  if (dx || dy) {
+    tryStep(dx, dy)
+    saver?.update(view.camera.x, view.camera.y)
+  }
   link?.setViewport({
     x0: Math.floor(view.camera.x) - 12,
     y0: Math.floor(view.camera.y) - 9,
@@ -152,6 +166,13 @@ function myTilePos () {
 function tryPlaceRock () {
   if (!myPk) return
   const obj = makeObject('rock', { creator: myPk, ts: Date.now(), pos: myTilePos() })
+  store.upsert(obj, { creatorOnline: true })
+  link?.broadcastObjectState(obj)
+}
+
+function tryPlaceMerchant () {
+  if (!myPk) return
+  const obj = makeObject('merchant', { creator: myPk, ts: Date.now(), pos: { x: myTilePos().x + 1, y: myTilePos().y } })
   store.upsert(obj, { creatorOnline: true })
   link?.broadcastObjectState(obj)
 }
@@ -203,7 +224,23 @@ onMounted(async () => {
     // cada frame lea las etiquetas del idioma activo.
     hudLabels: () => t.value.hud
   })
-  // Aparecer en tierra firme: la celda (0, 0) puede ser agua según la semilla.
+  // Volver a donde estabas: la posición vive en el almacén del perfil.
+  let saved = null
+  try {
+    const us = await openStore(getIdentity())
+    userStore.value = us
+    saved = await loadPosition(us)
+    saver = new PositionSaver(us, { onError: (e) => { console.error('[gridgame] could not save position', e); saveProblem.value = true } })
+  } catch (e) {
+    console.error('[gridgame] store unavailable: position is not saved', e)
+    saveProblem.value = true
+  }
+  if (saved && passableAt(saved.x, saved.y, view.ground, store).passable) {
+    view.camera.x = saved.x
+    view.camera.y = saved.y
+  } else {
+  // Primera vez (o lo guardado quedó tapado): aparecer en tierra firme; la celda
+  // (0, 0) puede ser agua según la semilla.
   // Espiral hacia fuera hasta la primera celda transitable.
   spawn: for (let r = 0; r < 200; r++) {
     for (let dy = -r; dy <= r; dy++) {
@@ -213,6 +250,7 @@ onMounted(async () => {
       }
     }
   }
+  }
   view.resize()
   view.start()
   moveRaf = requestAnimationFrame(tickMove)
@@ -220,6 +258,7 @@ onMounted(async () => {
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
   window.addEventListener('resize', onResize)
+  document.addEventListener('visibilitychange', onHide)
 
   statusKey.value = 'connecting'
   // SIN BÓVEDA NO SE JUEGA EN RED. Lo que va por el cable es del jugador (dónde está,
@@ -268,6 +307,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
   window.removeEventListener('resize', onResize)
+  document.removeEventListener('visibilitychange', onHide)
+  saver?.flush()
 })
 </script>
 
@@ -300,10 +341,11 @@ onBeforeUnmount(() => {
     @dotrino-lang="onLang"
   ></dotrino-topbar>
   <div class="hint">
-    WASD {{ t.hint.move }} · <b>Q</b> {{ t.hint.rock }} · <b>E</b> {{ t.hint.summon }} ·
+    WASD {{ t.hint.move }} · <b>Q</b> {{ t.hint.rock }} · <b>E</b> {{ t.hint.summon }} · <b>M</b> {{ t.hint.merchant }} ·
     <b>F</b> {{ t.hint.attack }} · <b>T</b> {{ t.hint.tiles }}
     <div class="status">{{ status }}</div>
     <div v-if="unreachableText" class="status warn">{{ unreachableText }}</div>
+    <div v-if="saveProblem" class="status warn" data-testid="save-problem">{{ t.status.saveFailed }}</div>
   </div>
   <TilePicker v-if="showPicker" :lang="lang" @close="showPicker = false" />
 

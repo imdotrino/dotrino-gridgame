@@ -66,6 +66,21 @@ acepta nada dirigido en claro.
 derecha, arriba), columna = de pie, paso A, paso B. `src/render/player.js` elige la cara
 según el movimiento y alterna los pasos al andar. `scripts/player/draw.py` lo regenera.
 
+## Slime y mercader
+
+`public/actors.png` (48×32, frames de 16 px): fila 0 el slime, fila 1 el mercader; columnas
+0 quieto, 1 y 2 las dos variaciones del reposo (0 → 1 → 0 → 2). `src/render/actors.js`
+elige la fila por `payload.name` y desfasa el ciclo por id para que no laten todos a la vez.
+Un actor sin fila sigue saliendo como rectángulo de color. `scripts/actors/draw.py` lo
+regenera. En el juego: **E** invoca un slime y **M** pone un mercader a tu lado.
+
+## Volver a donde estabas
+
+La posición es del jugador, así que vive en el almacén del perfil (`@dotrino/store`, hilo
+`gridgame.position`, respaldado en la bóveda), no en `localStorage`. Se escribe como mucho
+una vez por segundo mientras te mueves y al ocultarse la pestaña (`src/save.js`). Si el
+almacén no abre, la pantalla lo dice: sin aviso, volver al origen parecería un fallo.
+
 ## Pruebas
 
 ```bash

@@ -3,6 +3,7 @@ import { resolveTile } from '../world/resolve.js'
 import { getSheet } from './tiles.js'
 import { TerrainAtlas, layerOf, quadLayers, fullVariant, FULL } from './terrain.js'
 import { PlayerSprite, facingFor, walkFrame } from './player.js'
+import { ActorSheet, actorRow, idleFrame, phaseOf } from './actors.js'
 
 // Render 2D. Dibuja:
 //   1) ground procedural como fondo.
@@ -27,6 +28,7 @@ export class WorldView {
     this.sheet = getSheet()
     this.terrain = new TerrainAtlas()
     this.player = new PlayerSprite()
+    this.actors = new ActorSheet()
     // Hacia dónde mira y si camina: lo fija la app en cada paso (setMotion).
     this.facing = 0 // fila del sprite: 0 abajo, 1 izquierda, 2 derecha, 3 arriba
     this.walking = false
@@ -227,20 +229,30 @@ export class WorldView {
       }
     }
     if (r.actors.winner) {
-      const a = r.actors.winner
-      if (!this.sheet.draw(ctx, a.type, px, py, ts)) {
-        ctx.fillStyle = a.type === 'enemy' ? '#c0392b' : (a.type === 'npc' ? '#2ecc71' : '#3498db')
-        ctx.fillRect(px + ts * 0.25, py + ts * 0.1, ts * 0.5, ts * 0.8)
-      }
+      this._drawActor(r.actors.winner, px, py, ts)
       for (const ghost of r.actors.others) {
         ctx.save()
         ctx.globalAlpha = 0.35
-        if (!this.sheet.draw(ctx, ghost.type, px, py, ts)) {
-          ctx.fillStyle = ghost.type === 'enemy' ? '#c0392b' : (ghost.type === 'npc' ? '#2ecc71' : '#3498db')
-          ctx.fillRect(px + ts * 0.25, py + ts * 0.1, ts * 0.5, ts * 0.8)
-        }
+        this._drawActor(ghost, px, py, ts)
         ctx.restore()
       }
     }
+  }
+
+  /** Un actor: su sprite con sombra; sin sprite (o mientras carga), un rectángulo de su color. */
+  _drawActor (a, px, py, ts) {
+    const ctx = this.ctx
+    const row = actorRow(a)
+    if (row !== null && this.actors.ready) {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'
+      ctx.beginPath()
+      ctx.ellipse(px + ts / 2, py + ts * 0.92, ts * 0.3, ts * 0.11, 0, 0, Math.PI * 2)
+      ctx.fill()
+      this.actors.draw(ctx, row, idleFrame(performance.now(), phaseOf(a.id)), Math.floor(px), Math.floor(py), ts)
+      return
+    }
+    if (this.sheet.draw(ctx, a.type, px, py, ts)) return
+    ctx.fillStyle = a.type === 'enemy' ? '#c0392b' : (a.type === 'npc' ? '#2ecc71' : '#3498db')
+    ctx.fillRect(px + ts * 0.25, py + ts * 0.1, ts * 0.5, ts * 0.8)
   }
 }

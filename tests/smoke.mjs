@@ -8,6 +8,7 @@ import { powerFor, capOnCraft } from '../src/world/power.js'
 import { makeObject, rulesFor } from '../src/objects/standard.js'
 import { LAYERS, layerOf, quadLayers, fullVariant } from '../src/render/terrain.js'
 import { facingFor, walkFrame } from '../src/render/player.js'
+import { actorRow, idleFrame, phaseOf } from '../src/render/actors.js'
 
 let passed = 0, failed = 0
 function eq (label, a, b) {
@@ -119,6 +120,13 @@ eq('derecha', facingFor(1, 0.2), 2)
 eq('arriba', facingFor(0.1, -1), 3)
 eq('quieto conserva la cara', facingFor(0, 0, 2), 2)
 eq('ciclo de pasos', [0, 140, 280, 420].map(walkFrame), [0, 1, 0, 2])
+
+console.log('11) Sprites de actores')
+eq('slime → fila 0', actorRow(makeObject('slime', { creator: 'a', ts: 1, pos: { x: 0, y: 0 } })), 0)
+eq('mercader → fila 1', actorRow(makeObject('merchant', { creator: 'a', ts: 1, pos: { x: 0, y: 0 } })), 1)
+eq('sin sprite → null', actorRow({ type: 'enemy', payload: { name: 'dragon' } }), null)
+eq('ciclo de reposo', [0, 180, 360, 540].map((t) => idleFrame(t)), [0, 1, 0, 2])
+eq('desfase estable por id', phaseOf('alice:1'), phaseOf('alice:1'))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)
