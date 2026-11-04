@@ -252,14 +252,15 @@ const back = ls.get('w1')
 truthy('vuelve a su casa', Math.max(Math.abs(back.pos.x - 10), Math.abs(back.pos.y)) <= 3)
 eq('y se calma', back.payload.provoked, false)
 
-console.log('12d) El grupo que sale de pantalla se va y deja sitio')
+console.log('12d) El grupo que sale de la zona de memoria (2× pantalla) se va y deja sitio')
 const desk = { halfW: 30, halfH: 14 }
 const phone = { halfW: 6, halfH: 11 }
 eq('en pantalla no se va', packGone([{ pos: { x: 10, y: 0 } }], { x: 0, y: 0 }, desk), false)
-eq('fuera de pantalla y lejos, se va', packGone([{ pos: { x: 0, y: 20 } }, { pos: { x: 2, y: 21 } }], { x: 0, y: 0 }, desk), true)
-eq('si uno sigue en pantalla, el grupo se queda', packGone([{ pos: { x: 0, y: 20 } }, { pos: { x: 3, y: 10 } }], { x: 0, y: 0 }, desk), false)
-eq('en el teléfono, recién aparecido fuera de pantalla, NO se va', packGone([{ pos: { x: 12, y: 0 } }], { x: 0, y: 0 }, phone), false)
-eq('en el teléfono, ya lejos, se va', packGone([{ pos: { x: PACK_GONE_DIST + 1, y: 0 } }], { x: 0, y: 0 }, phone), true)
+eq('fuera de pantalla pero dentro del doble, se queda (si vuelves, sigue ahí)', packGone([{ pos: { x: 0, y: 20 } }], { x: 0, y: 0 }, desk), false)
+eq('fuera del doble de la pantalla, se va', packGone([{ pos: { x: 0, y: 29 } }, { pos: { x: 2, y: 30 } }], { x: 0, y: 0 }, desk), true)
+eq('si uno sigue dentro, el grupo se queda', packGone([{ pos: { x: 0, y: 29 } }, { pos: { x: 3, y: 10 } }], { x: 0, y: 0 }, desk), false)
+eq('en el teléfono, recién aparecido, NO se va', packGone([{ pos: { x: 14, y: 0 } }], { x: 0, y: 0 }, phone), false)
+eq('en el teléfono, fuera del doble y lejos, se va', packGone([{ pos: { x: PACK_GONE_DIST + 1, y: 0 } }], { x: 0, y: 0 }, phone), true)
 {
   const gs = new LocalStore({ myPeerId: 'me' })
   const gh = new CombatHost({ store: gs, myPubkey: 'me', onPlayerHit: () => {}, rand: rnd })

@@ -14,7 +14,8 @@
 
 export const THREAT_RADIUS = 8          // casillas: lo que cuenta como «cerca» y donde cazan
 export const DESPAWN_RADIUS = 40        // red de seguridad: más lejos que esto, un monstruo suelto se va
-export const PACK_GONE_DIST = 16        // un grupo fuera de pantalla Y más lejos que esto se elimina
+export const PACK_GONE_DIST = 16        // un grupo fuera de la zona de memoria Y más lejos que esto se elimina
+export const MEMORY_FACTOR = 2          // la zona de memoria es el doble de la pantalla
 export const STEP_MS = 600              // un paso por casilla
 export const ATTACK_MS = 1000           // un golpe por segundo
 export const STRUCTURE_HP = 20          // vida de lo que construyes
@@ -100,20 +101,24 @@ export function makePack (center, threat, rand, isPassable, players = []) {
 }
 
 /**
- * ¿Se ha ido el grupo? Todos sus miembros fuera de la pantalla (más un margen de una
- * casilla) Y a más de PACK_GONE_DIST del jugador. Las dos cosas: en un teléfono la
- * pantalla es estrecha y los grupos APARECEN ya fuera de ella (a 9–14 casillas); sin la
- * distancia, se borrarían al nacer.
+ * ¿Se ha ido el grupo? Todos sus miembros fuera de la ZONA DE MEMORIA (el doble de la
+ * pantalla, MEMORY_FACTOR) Y a más de PACK_GONE_DIST del jugador.
+ *   - El doble, y no la pantalla justa: un grupo que acabas de dejar atrás sigue ahí si das
+ *     la vuelta. Si se borrara al salir del borde, volver dos pasos daría otro distinto.
+ *   - La distancia: en un teléfono la pantalla es estrecha y los grupos APARECEN ya fuera
+ *     de ella (a 9–14 casillas); sin ella, se borrarían al nacer.
  * @param {{pos:{x:number,y:number}}[]} members
  * @param {{halfW:number, halfH:number}} screen media pantalla en casillas
  */
 export function packGone (members, player, screen) {
   if (!members.length) return true
+  const zw = screen ? screen.halfW * MEMORY_FACTOR : 0
+  const zh = screen ? screen.halfH * MEMORY_FACTOR : 0
   return members.every((m) => {
     const dx = Math.abs(m.pos.x - player.x)
     const dy = Math.abs(m.pos.y - player.y)
-    const offscreen = !screen || dx > screen.halfW + 1 || dy > screen.halfH + 1
-    return offscreen && chebyshev(m.pos, player) > PACK_GONE_DIST
+    const outside = !screen || dx > zw || dy > zh
+    return outside && chebyshev(m.pos, player) > PACK_GONE_DIST
   })
 }
 

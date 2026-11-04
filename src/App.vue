@@ -236,7 +236,7 @@ function tickMove () {
     isPassable: (x, y) => passableAt(x, y, view.ground, store).passable,
     others: others.map((o) => ({ x: Math.round(o.x), y: Math.round(o.y) })),
     playerSafe: life.isSafe(now),
-    // Media pantalla en casillas: un grupo que sale de ahí (y queda lejos) se elimina.
+    // Media pantalla en casillas: un grupo que sale del doble de esto (y queda lejos) se elimina.
     screen: { halfW: view.canvas.clientWidth / view.tileSize / 2, halfH: view.canvas.clientHeight / view.tileSize / 2 }
   })
   sendPosition(now)
