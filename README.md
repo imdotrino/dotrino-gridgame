@@ -97,7 +97,8 @@ Aparecen solos alrededor de cada jugador para atacarlo a él y a lo que construy
 
 La posición es del jugador, así que vive en el almacén del perfil (`@dotrino/store`, hilo
 `gridgame.position`, respaldado en la bóveda), no en `localStorage`. Se escribe como mucho
-una vez por segundo mientras te mueves y al ocultarse la pestaña (`src/save.js`). Si el
+cada 30 s y solo al cambiar de casilla, y siempre al ocultarse la pestaña (`src/save.js`):
+cada escritura del almacén dispara una sincronización con la bóveda. Si el
 almacén no abre, la pantalla lo dice: sin aviso, volver al origen parecería un fallo.
 
 ## Pruebas

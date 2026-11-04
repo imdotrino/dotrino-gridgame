@@ -11,6 +11,7 @@ import { facingFor, walkFrame } from '../src/render/player.js'
 import { actorRow, idleFrame, phaseOf } from '../src/render/actors.js'
 import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
 import { CombatHost } from '../src/combat.js'
+import { PositionSaver } from '../src/save.js'
 
 let passed = 0, failed = 0
 function eq (label, a, b) {
@@ -179,6 +180,21 @@ eq('la roca cae', cs.get('rock1'), null)
 let threw = false
 try { new CombatHost({ store: cs, myPubkey: 'me' }) } catch { threw = true }
 truthy('sin onPlayerHit no arranca', threw)
+
+console.log('13) Guardar la posición no inunda la bóveda')
+const ops = []
+const fakeStore = { removeThread: async () => ops.push('rm'), appendMessage: async () => ops.push('add') }
+const sv = new PositionSaver(fakeStore)
+for (let i = 0; i < 200; i++) sv.update(i * 0.05, 0)
+eq('caminar no escribe nada antes del intervalo', ops.length, 0)
+await sv.flush()
+eq('un guardado = borrar + añadir', ops, ['rm', 'add'])
+await sv.flush()
+eq('sin cambios no vuelve a escribir', ops.length, 2)
+sv.update(10.4, 0); sv.update(12.2, 0); sv.update(11.8, 0)
+await sv.flush()
+eq('varias casillas seguidas, un solo guardado', ops.length, 4)
+clearTimeout(sv.timer)
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

@@ -10,7 +10,11 @@
 import { Store } from '@dotrino/store'
 
 export const POS_THREAD = 'gridgame.position'
-const SAVE_EVERY_MS = 1000
+// Cada escritura en el almacén se respalda en la bóveda (la sincronización sale 1,5 s
+// después de la última), y cada guardado son dos escrituras (borrar el hilo + añadir).
+// Guardar cada segundo al caminar era una sincronización tras cada parada. La posición
+// no necesita más que esto: cada 30 s como mucho, y siempre al ocultarse la pestaña.
+const SAVE_EVERY_MS = 30_000
 
 /**
  * Abre el almacén con la identidad del perfil. Lanza si no se puede: quien llama
@@ -33,7 +37,7 @@ export async function loadPosition (store) {
 }
 
 /**
- * Guarda la posición como mucho una vez por segundo y solo si cambió. Las escrituras
+ * Guarda la posición como mucho cada 30 s y solo si cambió de casilla. Las escrituras
  * van en fila: dos «borrar + añadir» a la vez podrían dejar el hilo con dos entradas
  * o vacío.
  */
@@ -49,7 +53,7 @@ export class PositionSaver {
 
   /** Posición actual; se escribe al cumplirse el intervalo. */
   update (x, y) {
-    const pos = { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 }
+    const pos = { x: Math.round(x), y: Math.round(y) }
     if (this.last && this.last.x === pos.x && this.last.y === pos.y) return
     this.pending = pos
     if (!this.timer) this.timer = setTimeout(() => this.flush(), SAVE_EVERY_MS)
