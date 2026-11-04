@@ -141,6 +141,20 @@ function die () {
   downedTimer = setTimeout(() => { downed.value = false }, 4000)
 }
 
+// Dónde estoy, a los demás: hasta 5 veces por segundo mientras me muevo, y cada 3 s
+// quieto (para que sepan que sigo ahí y los monstruos no aparezcan encima).
+let lastPosSentAt = 0
+let lastPosSent = null
+function sendPosition (now) {
+  if (!link) return
+  const p = { x: Math.round(view.camera.x * 10) / 10, y: Math.round(view.camera.y * 10) / 10, facing: view.facing, walking: view.walking }
+  const changed = !lastPosSent || p.x !== lastPosSent.x || p.y !== lastPosSent.y || p.facing !== lastPosSent.facing || p.walking !== lastPosSent.walking
+  if (now - lastPosSentAt < (changed ? 200 : 3000)) return
+  lastPosSentAt = now
+  lastPosSent = p
+  link.broadcastPosition(p.x, p.y, p.facing, p.walking)
+}
+
 function regen (now) {
   if (hp >= MAX_HP || now - lastHurtAt < REGEN_AFTER_MS || now - lastRegenAt < REGEN_EVERY_MS) return
   lastRegenAt = now
@@ -205,11 +219,15 @@ function tickMove () {
   // Hasta saber qué dice la red de mí no aparecen monstruos nuevos: saldrían con una
   // fuerza inventada. Los que ya hay siguen actuando.
   const standing = myStandingSync()
+  const others = link ? link.otherPlayers() : []
+  view.others = others
   combat?.tick(now, {
     player: myTilePos(),
     rep: standing,
-    isPassable: (x, y) => passableAt(x, y, view.ground, store).passable
+    isPassable: (x, y) => passableAt(x, y, view.ground, store).passable,
+    others: others.map((o) => ({ x: Math.round(o.x), y: Math.round(o.y) }))
   })
+  sendPosition(now)
   regen(now)
   link?.setViewport({
     x0: Math.floor(view.camera.x) - 12,

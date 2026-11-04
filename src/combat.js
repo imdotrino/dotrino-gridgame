@@ -12,8 +12,8 @@
 
 import { makeObject } from './objects/standard.js'
 import {
-  THREAT_RADIUS, DESPAWN_RADIUS, STEP_MS, ATTACK_MS, STRUCTURE_HP,
-  chebyshev, structuresNear, threatFor, spawnSpot, pickTarget, stepToward
+  THREAT_RADIUS, DESPAWN_RADIUS, STEP_MS, ATTACK_MS, STRUCTURE_HP, PROVOKE_RADIUS, WANDER_MS,
+  chebyshev, structuresNear, threatFor, spawnSpot, makePack, farFromAll, chooseTarget, stepToward, wanderStep
 } from './world/threat.js'
 
 export class CombatHost {
@@ -21,9 +21,11 @@ export class CombatHost {
    * @param {object} o
    * @param {(dmg:number, by:object) => void} o.onPlayerHit  un monstruo mío me pegó
    */
-  constructor ({ store, peerLink = null, myPubkey, onPlayerHit } = {}) {
+  constructor ({ store, peerLink = null, myPubkey, onPlayerHit, rand = Math.random } = {}) {
     if (!onPlayerHit) throw new Error('CombatHost: onPlayerHit is required')
     this.store = store
+    this.rand = rand
+    this.packSeq = 0
     this.myPubkey = myPubkey
     this.onPlayerHit = onPlayerHit
     this.nextSpawnAt = 0
@@ -58,8 +60,9 @@ export class CombatHost {
    * @param {{x:number,y:number}} player posición del jugador (casilla)
    * @param {number} rep reputación del jugador ∈ [0,1]
    * @param {(x:number,y:number) => boolean} isPassable
+   * @param {{x:number,y:number}[]} others posiciones de los demás jugadores conocidos
    */
-  tick (now, { player, rep, isPassable }) {
+  tick (now, { player, rep, isPassable, others = [] }) {
     const monsters = this.myMonsters()
     const structures = structuresNear(this.store.inRect(player.x - THREAT_RADIUS, player.y - THREAT_RADIUS, player.x + THREAT_RADIUS, player.y + THREAT_RADIUS), this.myPubkey, player)
     // rep null = todavía no se sabe qué dice la red de este jugador: no se inventa una
@@ -67,22 +70,33 @@ export class CombatHost {
     if (rep != null && now >= this.nextSpawnAt) {
       const threat = threatFor({ hosted: structures.length, rep })
       this.nextSpawnAt = now + threat.intervalMs
-      if (monsters.length < threat.maxAlive) {
-        const spot = spawnSpot(player, Math.random, isPassable)
-        if (spot) this._spawn(spot, threat)
+      if (monsters.length + threat.packSize <= threat.maxAlive) {
+        // Lejos de todos: el centro y cada miembro del grupo, de mí y de los demás.
+        const everyone = [player, ...others]
+        const center = spawnSpot(player, this.rand, (x, y) => isPassable(x, y) && farFromAll({ x, y }, everyone))
+        if (center) this._spawnPack(center, threat, isPassable, everyone)
       }
     }
 
     for (const m of monsters) this._act(m, now, player, structures, isPassable)
   }
 
-  _spawn (pos, threat) {
-    const obj = makeObject('slime', { creator: this.myPubkey, ts: Date.now(), pos })
-    obj.payload.hp = threat.hp
-    obj.payload.max_hp = threat.hp
-    obj.payload.dmg = threat.dmg
-    this._publish(obj)
-    return obj
+  /** Un grupo entero: comparten `pack` y una casa (`home`) de la que no se alejan tranquilos. */
+  _spawnPack (center, threat, isPassable, players) {
+    const pack = `${this.myPubkey.slice(-6)}:${Date.now().toString(36)}:${this.packSeq++}`
+    const out = []
+    for (const m of makePack(center, threat, this.rand, isPassable, players)) {
+      const obj = makeObject('slime', { creator: this.myPubkey, ts: Date.now(), pos: m.pos })
+      obj.payload = {
+        ...obj.payload,
+        hp: m.hp, max_hp: m.hp, dmg: m.dmg,
+        role: m.role, aggro: m.aggro, scale: m.scale,
+        pack, home: { ...m.pos }, provoked: false
+      }
+      this._publish(obj)
+      out.push(obj)
+    }
+    return out
   }
 
   // Los objetos del almacén NO se mutan: está indexado por casilla, y cambiar `pos` en
@@ -94,7 +108,16 @@ export class CombatHost {
       this.peerLink?.broadcastObjectGone(m.id)
       return
     }
-    const target = pickTarget(m.pos, player, structures)
+    const target = chooseTarget(m, player, structures)
+    if (!target) {
+      // Nada a la vista y nadie le ha pegado: se queda cerca de su casa, moviéndose a ratos.
+      if (now - (m.payload.lastStepAt || 0) < WANDER_MS) return
+      const next = wanderStep(m.pos, m.payload.home, this.rand, isPassable)
+      const updated = { ...m, pos: next || m.pos, ts: Date.now(), payload: { ...m.payload, lastStepAt: now } }
+      if (next) this._publish(updated)
+      else this.store.upsert(updated, { creatorOnline: true })
+      return
+    }
     if (target.d <= 1) {
       if (now - (m.payload.lastAttackAt || 0) < ATTACK_MS) return
       // El reloj del golpe es solo del dueño: no hace falta publicarlo.
@@ -135,12 +158,23 @@ export class CombatHost {
     if (!obj || obj.creator !== this.myPubkey) return // solo el dueño aplica
     if (obj.type !== 'enemy') return
     const hp = (obj.payload.hp || 0) - amount
+    // Pegarle enfada a él y a los de su grupo que estén cerca, aunque su ira sea 0.
+    this._provokePack(obj)
     if (hp <= 0) {
       this._announceDeath(obj)
       this.store.remove(obj.id)
       this.peerLink?.broadcastObjectGone(obj.id)
     } else {
-      this._publish({ ...obj, ts: Date.now(), payload: { ...obj.payload, hp } })
+      const cur = this.store.get(obj.id)
+      this._publish({ ...cur, ts: Date.now(), payload: { ...cur.payload, hp, provoked: true } })
+    }
+  }
+
+  _provokePack (hit) {
+    for (const m of this.myMonsters()) {
+      if (m.payload.provoked) continue
+      const same = m.id === hit.id || (hit.payload.pack && m.payload.pack === hit.payload.pack && chebyshev(m.pos, hit.pos) <= PROVOKE_RADIUS)
+      if (same) this._publish({ ...m, ts: Date.now(), payload: { ...m.payload, provoked: true } })
     }
   }
 
@@ -171,8 +205,9 @@ export class CombatHost {
 
 function lootTableFor (enemy) {
   // Tabla muy simple por ahora. En el futuro la decide su DSL/payload.
-  switch (enemy.payload?.name) {
-    case 'slime': return ['herb', 'apple']
-    default: return ['herb']
-  }
+  // El jefe y el líder sueltan más.
+  const base = enemy.payload?.name === 'slime' ? ['herb', 'apple'] : ['herb']
+  if (enemy.payload?.role === 'boss') return [...base, 'herb', 'apple', 'herb']
+  if (enemy.payload?.role === 'leader') return [...base, 'herb']
+  return base
 }

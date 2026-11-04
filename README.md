@@ -76,22 +76,37 @@ regenera. En el juego, **Q** pone una roca y **M** un mercader delante de ti.
 
 ## Monstruos: nadie los invoca
 
-Aparecen solos alrededor de cada jugador para atacarlo a él y a lo que construyó
-(`src/world/threat.js`, `src/combat.js`):
+Aparecen solos, en **grupos**, alrededor de cada jugador (`src/world/threat.js`,
+`src/combat.js`):
 
 - **Cuántos y cada cuánto**: lo que hosteas cerca (tus rocas, cofres, mercaderes en 8
-  casillas). Sin nada construido, uno cada 40 s; con más, más a la vez (tope 8) y más seguido.
-- **Qué tan fuertes**: tu reputación tal como la ve la red (el registro compartido), no el
-  1 con que tu pantalla resuelve tus propios conflictos. No hay nivel ni XP. Hasta saberla,
-  no aparece ninguno nuevo.
+  casillas). Sin nada construido ya hay hasta 6 vivos; construir sube el tope (24), el
+  ritmo y el tamaño de cada grupo (3 a 7).
+- **Siempre alejados de cualquier jugador**: cada grupo aparece a 9–14 casillas, y ningún
+  monstruo a menos de 8 de ningún jugador. En una zona con mucha gente no aparecen.
+- **Papeles en el grupo**: un **líder** (doble de vida, dorado y más grande) o, a veces, un
+  **jefe** (×5 de vida, morado, más grande todavía, con su vida siempre a la vista);
+  **normales**; y **esbirros** (media vida, más pequeños). El jefe sale más con más
+  reputación, y el líder y el jefe sueltan más botín.
+- **Ira** ∈ [0, 1]: la distancia a la que te ven es `ira × 10` casillas. Con ira 0 no
+  atacan a nadie hasta que les pegas; pegarle a uno enfada a todo su grupo cercano. Sin
+  nada a la vista, deambulan cerca de donde aparecieron.
+- **Qué tan fuertes**: tu reputación tal como la ve la red (el registro compartido). No hay
+  nivel ni XP. Hasta saberla, no aparece ninguno nuevo.
 - **Quién los hostea**: el jugador amenazado. Su vida, su movimiento y su golpe los decide
   él, así que para quien se defiende no hay latencia; el amigo que ayuda manda su golpe
-  al dueño (`hit`).
-- Caminan por el camino más corto (búsqueda en anchura de 12 casillas), atacan lo más
-  cercano entre tú y tus estructuras, y rompen lo que construiste (20 de vida). Tu vida
-  es 20, se recupera sola tras 5 s sin golpes, y a cero vuelves al punto de partida.
+  al dueño (`hit`). Provocados, van a por el jugador que los hostea.
+- Caminan por el camino más corto (búsqueda en anchura de 12 casillas) y rompen lo que
+  construiste (20 de vida). Tu vida es 20, se recupera sola tras 5 s sin golpes, y a cero
+  vuelves al punto de partida.
 - **Cada uno publica y borra solo lo suyo**: un `object_state` o un `object_gone` que no
   viene de su creador se rechaza.
+
+## Los demás jugadores
+
+Cada uno manda su posición sellada (`player_pos`), hasta 5 veces por segundo al moverse y
+cada 3 s quieto. Se dibujan con el mismo personaje, interpolando entre una posición y la
+siguiente, y es lo que los monstruos miran para no aparecer cerca de nadie.
 
 ## Volver a donde estabas
 

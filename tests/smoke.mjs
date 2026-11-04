@@ -9,7 +9,7 @@ import { makeObject, rulesFor } from '../src/objects/standard.js'
 import { LAYERS, layerOf, quadLayers, fullVariant } from '../src/render/terrain.js'
 import { facingFor, walkFrame } from '../src/render/player.js'
 import { actorRow, idleFrame, phaseOf } from '../src/render/actors.js'
-import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
+import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, makePack, chooseTarget, sightOf, wanderStep, ROLES, MIN_SPAWN_DIST, farFromAll, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
 import { CombatHost } from '../src/combat.js'
 import { PositionSaver, loadPosition, POS_THREAD } from '../src/save.js'
 
@@ -131,13 +131,12 @@ eq('sin sprite → null', actorRow({ type: 'enemy', payload: { name: 'dragon' } 
 eq('ciclo de reposo', [0, 180, 360, 540].map((t) => idleFrame(t)), [0, 1, 0, 2])
 eq('desfase estable por id', phaseOf('alice:1'), phaseOf('alice:1'))
 
-console.log('12) Monstruos por hosteo + reputación')
+console.log('12) Monstruos: grupos, papeles e ira')
 const t0 = threatFor({ hosted: 0, rep: 0 })
 const t6 = threatFor({ hosted: 6, rep: 0 })
-eq('sin construir: 1 a la vez', t0.maxAlive, 1)
-truthy('construir atrae más y más seguido', t6.maxAlive > t0.maxAlive && t6.intervalMs < t0.intervalMs)
-truthy('la reputación los hace más fuertes', threatFor({ hosted: 0, rep: 1 }).hp > t0.hp && threatFor({ hosted: 0, rep: 1 }).dmg > t0.dmg)
-eq('tope de 8', threatFor({ hosted: 100, rep: 0 }).maxAlive, 8)
+truthy('sin construir ya salen varios', t0.maxAlive >= 6 && t0.packSize >= 3)
+truthy('construir atrae más, más seguido y en grupos más grandes', t6.maxAlive > t0.maxAlive && t6.intervalMs < t0.intervalMs && t6.packSize > t0.packSize)
+truthy('la reputación los hace más fuertes y trae más jefes', threatFor({ hosted: 0, rep: 1 }).hp > t0.hp && threatFor({ hosted: 0, rep: 1 }).bossChance > t0.bossChance)
 const mine = [
   { id: 'r1', type: 'prop', creator: 'me', pos: { x: 3, y: 0 } },
   { id: 'r2', type: 'prop', creator: 'me', pos: { x: 30, y: 0 } },
@@ -147,34 +146,75 @@ const mine = [
 eq('cuenta solo lo mío, cerca y atacable', structuresNear(mine, 'me', { x: 0, y: 0 }).map((o) => o.id), ['r1'])
 eq('va a por lo más cercano', pickTarget({ x: 5, y: 0 }, { x: 0, y: 0 }, [mine[0]]).kind, 'structure')
 eq('paso recto hacia el objetivo', stepToward({ x: 0, y: 0 }, { x: 5, y: 0 }, () => true), { x: 1, y: 0 })
-// Pared en x=1 de y=-3 a y=3: tiene que rodearla.
 const wall = (x, y) => !(x === 1 && y >= -3 && y <= 3)
 const around = stepToward({ x: 0, y: 0 }, { x: 5, y: 0 }, wall)
 truthy('rodea una pared', around && around.x === 0 && Math.abs(around.y) === 1)
 eq('al lado del objetivo no se mueve', stepToward({ x: 0, y: 0 }, { x: 1, y: 1 }, () => true), null)
 eq('sin camino se queda quieto', stepToward({ x: 0, y: 0 }, { x: 5, y: 0 }, (x, y) => x === 0 && y === 0), null)
 const sp = spawnSpot({ x: 0, y: 0 }, () => 0.5, () => true)
-truthy('aparece en el anillo 6..9', Math.max(Math.abs(sp.x), Math.abs(sp.y)) >= 5 && Math.max(Math.abs(sp.x), Math.abs(sp.y)) <= 9)
+const spd = Math.max(Math.abs(sp.x), Math.abs(sp.y))
+truthy('el grupo aparece alejado (anillo 9..14)', spd >= 7 && spd <= 14)
 eq('rodeado de agua no aparece', spawnSpot({ x: 0, y: 0 }, Math.random, () => false), null)
 
-// Un combate entero sin red: aparece, camina, pega al jugador, rompe una roca.
+// Grupo con papeles: uno al mando, el resto normales o esbirros, y nadie encima del jugador.
+let seed = 1
+const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646 }
+const pk = makePack({ x: 9, y: 0 }, { ...t6, bossChance: 0 }, rnd, () => true, [{ x: 0, y: 0 }])
+eq('un líder por grupo', pk.filter((m) => m.role === 'leader').length, 1)
+truthy('el líder es el más fuerte', pk.every((m) => m.role === 'leader' || m.hp <= pk[0].hp))
+truthy('ninguno a menos de 8 del jugador', pk.every((m) => Math.max(Math.abs(m.pos.x), Math.abs(m.pos.y)) >= MIN_SPAWN_DIST))
+truthy('casillas distintas', new Set(pk.map((m) => `${m.pos.x},${m.pos.y}`)).size === pk.length)
+const boss = makePack({ x: 9, y: 0 }, { ...t6, bossChance: 1 }, rnd, () => true)
+eq('a veces el que manda es un jefe', boss[0].role, 'boss')
+truthy('el jefe es mucho más fuerte que un líder', boss[0].hp >= ROLES.boss.hp * t6.hp - 1 && ROLES.boss.hp > ROLES.leader.hp)
+
+// Lejos de CUALQUIER jugador: con gente alrededor, no aparece nadie.
+const crowd = []
+for (let a = 0; a < 16; a++) crowd.push({ x: Math.round(Math.cos(a / 16 * Math.PI * 2) * 11), y: Math.round(Math.sin(a / 16 * Math.PI * 2) * 11) })
+const crowdHost = new CombatHost({ store: new LocalStore({ myPeerId: 'me' }), myPubkey: 'me', onPlayerHit: () => {}, rand: rnd })
+crowdHost.tick(1, { player: { x: 0, y: 0 }, rep: 0, isPassable: () => true, others: crowd })
+eq('en una zona con muchos jugadores no aparecen', crowdHost.myMonsters().length, 0)
+const nearOther = makePack({ x: 12, y: 0 }, t6, rnd, () => true, [{ x: 0, y: 0 }, { x: 14, y: 0 }])
+truthy('tampoco cerca de otro jugador', nearOther.every((m) => farFromAll(m.pos, [{ x: 14, y: 0 }])))
+
+// Ira: la distancia a la que te ve. Ira 0: no ve a nadie, salvo que le peguen.
+const calm = { pos: { x: 3, y: 0 }, payload: { aggro: 0 } }
+eq('ira 0 no va a por ti aunque estés al lado', chooseTarget(calm, { x: 0, y: 0 }, []), null)
+eq('provocado va a por ti aunque su ira sea 0', chooseTarget({ ...calm, payload: { aggro: 0, provoked: true } }, { x: 0, y: 0 }, []).kind, 'player')
+eq('ira 0.5 te ve a 5', sightOf(0.5), 5)
+eq('fuera de su vista no te persigue', chooseTarget({ pos: { x: 8, y: 0 }, payload: { aggro: 0.5 } }, { x: 0, y: 0 }, []), null)
+eq('dentro de su vista, sí', chooseTarget({ pos: { x: 4, y: 0 }, payload: { aggro: 0.5 } }, { x: 0, y: 0 }, []).kind, 'player')
+eq('tranquilo no se aleja de su casa', wanderStep({ x: 3, y: 0 }, { x: 0, y: 0 }, () => 0, () => true), null)
+
+// Un combate entero sin red.
 const cs = new LocalStore({ myPeerId: 'me' })
 let hits = 0
-const ch = new CombatHost({ store: cs, myPubkey: 'me', onPlayerHit: (d) => { hits += d } })
+seed = 7
+const ch = new CombatHost({ store: cs, myPubkey: 'me', onPlayerHit: (d) => { hits += d }, rand: rnd })
 const world = { player: { x: 0, y: 0 }, rep: 0, isPassable: () => true }
 let now = 1
 ch.tick(now, world)
-eq('aparece uno solo', ch.myMonsters().length, 1)
-for (let i = 0; i < 40; i++) { now += STEP_MS; ch.tick(now, world) }
-truthy('llega y pega al jugador', hits > 0)
+const first = ch.myMonsters()
+truthy('aparece un grupo, no uno suelto', first.length >= 2 && new Set(first.map((m) => m.payload.pack)).size === 1)
+truthy('todos alejados del jugador al aparecer', first.every((m) => Math.max(Math.abs(m.pos.x), Math.abs(m.pos.y)) >= MIN_SPAWN_DIST))
+// Los tranquilos (ira 0) no vienen solos: les pego a uno y viene todo el grupo cercano.
+for (const m of first) cs.upsert({ ...m, ts: Date.now(), payload: { ...m.payload, aggro: 0 } })
+for (let i = 0; i < 30; i++) { now += STEP_MS; ch.tick(now, world) }
+eq('con ira 0 nadie me ataca', hits, 0)
+ch.applyHit(first[0].id, 1)
+truthy('pegarle a uno provoca a su grupo', ch.myMonsters().filter((m) => m.payload.pack === first[0].payload.pack).every((m) => m.payload.provoked))
+for (let i = 0; i < 60; i++) { now += STEP_MS; ch.tick(now, world) }
+truthy('provocados, llegan y pegan', hits > 0)
 const m = ch.myMonsters()[0]
 truthy('el índice por casilla sigue al monstruo', cs.atTile(m.pos.x, m.pos.y).some((o) => o.id === m.id))
 let stale = 0
-for (let x = -10; x <= 10; x++) for (let y = -10; y <= 10; y++) for (const o of cs.atTile(x, y)) if (o.id === m.id && (o.pos.x !== x || o.pos.y !== y)) stale++
+for (let x = -30; x <= 30; x++) for (let y = -30; y <= 30; y++) for (const o of cs.atTile(x, y)) if (o.type === 'enemy' && (o.pos.x !== x || o.pos.y !== y)) stale++
 eq('sin copias fantasma en casillas viejas', stale, 0)
-// Una roca mía más cerca del monstruo que yo: va a por ella y la rompe.
+// Una roca mía a la vista de un monstruo con ira: va a por ella y la rompe.
+const angry = { ...m, ts: Date.now(), payload: { ...m.payload, aggro: 1, provoked: false } }
+cs.upsert(angry)
 cs.upsert({ id: 'rock1', type: 'prop', creator: 'me', ts: 1, pos: { x: m.pos.x + 1, y: m.pos.y }, payload: { kind: 'rock', solid: true } })
-const far = { ...world, player: { x: m.pos.x - 5, y: m.pos.y } }
+const far = { ...world, player: { x: m.pos.x - 7, y: m.pos.y } }
 for (let i = 0; i < 25; i++) { now += ATTACK_MS; ch.tick(now, far) }
 eq('la roca cae', cs.get('rock1'), null)
 let threw = false

@@ -38,7 +38,12 @@ export class PeerLink {
     this.store = store
     this.identity = identity
     this.repOfSync = repOfSync
-    this.gating = new PeerGating({ ratePerSec: 30, burst: 60, repMin: 0 })
+    // 5 posiciones por segundo + el movimiento de sus monstruos (cada uno un paso cada 0,6 s,
+    // hasta 24): con 30/s se cortaba a un jugador con un grupo grande.
+    this.gating = new PeerGating({ ratePerSec: 80, burst: 160, repMin: 0 })
+    // Dónde está cada jugador (pubkey → { x, y, facing, walking, at }). Lo usan el dibujo y
+    // los monstruos: no aparecen cerca de NINGÚN jugador.
+    this.playerPositions = new Map()
 
     this.client = getWebSocketProxyClient()
     if (url) this.client.updateConfig({ url })
@@ -122,6 +127,19 @@ export class PeerLink {
   /** Broadcast un object_state a todos los jugadores conocidos. */
   broadcastObjectState (obj) {
     this._sendToAll({ type: 'object_state', obj, ts: Date.now() })
+  }
+
+  /** Dónde estoy. Va sellado como todo lo demás: la posición es del jugador. */
+  broadcastPosition (x, y, facing, walking) {
+    this._sendToAll({ type: 'player_pos', x, y, facing, walking: !!walking, ts: Date.now() })
+  }
+
+  /** Posiciones de los demás vistas en los últimos `maxAgeMs`. */
+  otherPlayers (maxAgeMs = 10000) {
+    const now = Date.now()
+    const out = []
+    for (const [pk, p] of this.playerPositions) if (now - p.at <= maxAgeMs) out.push({ pk, ...p })
+    return out
   }
 
   broadcastObjectGone (id) {
@@ -211,6 +229,14 @@ export class PeerLink {
         this.store.remove(msg.id)
         break
       }
+      case 'player_pos':
+        // Solo de quien sabemos quién es, y con números de verdad.
+        if (!pk || !Number.isFinite(msg.x) || !Number.isFinite(msg.y)) {
+          this._emit({ kind: 'rejected', from: pk || fromToken, reason: 'bad-position' })
+          break
+        }
+        this.playerPositions.set(pk, { x: msg.x, y: msg.y, facing: (msg.facing | 0) & 3, walking: !!msg.walking, at: Date.now() })
+        break
       case 'hit':
         // Solo el dueño autoritativo lo procesa. Re-emit como evento local.
         this._emit({ kind: 'hit', enemyId: msg.enemyId, by: pk, amount: msg.amount })
@@ -246,6 +272,7 @@ export class PeerLink {
     if (pk) {
       this.tokenToPubkey.delete(token)
       this.peers.delete(pk)
+      this.playerPositions.delete(pk)
       this.unreachable.delete(pk)
       this.store.markCreatorOffline(pk)
       this._emit({ kind: 'peer-offline', pk })

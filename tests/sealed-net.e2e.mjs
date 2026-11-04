@@ -95,6 +95,14 @@ const llego = await B.page.waitForFunction(
 ).then(() => true).catch(() => false)
 check('lo que uno construye aparece en el mundo del otro', llego, puesto.id.slice(-8))
 
+// La posición también llega (sellada, como todo): sin ella, el otro no te ve en el mapa y
+// los monstruos podrían aparecerte encima.
+const posA = await A.page.evaluate(() => window.gridgame.myPk)
+const vistoEn = await B.page.waitForFunction(
+  (pk) => { const p = window.gridgame.link.playerPositions.get(pk); return p ? { x: p.x, y: p.y } : null }, posA, { timeout: 30000 }
+).then((h) => h.jsonValue()).catch(() => null)
+check('el otro ve dónde estoy', !!vistoEn, vistoEn ? JSON.stringify(vistoEn) : 'no llegó')
+
 // ---------- 3. lo que de verdad se mide: qué se vio por el cable ----------
 await new Promise((r) => setTimeout(r, 1500))
 

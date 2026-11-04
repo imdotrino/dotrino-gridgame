@@ -13,6 +13,9 @@ import { ActorSheet, actorRow, idleFrame, phaseOf } from './actors.js'
 // Las etiquetas del HUD también (hudLabels): el canvas queda fuera de Vue, así
 // que la app pasa un getter y cada frame dibuja en el idioma activo (§9).
 
+// Color por papel: el líder tira a dorado y el jefe a morado, para leerlos de un vistazo.
+const ROLE_TINT = { leader: 'hue-rotate(-55deg) saturate(1.4)', boss: 'hue-rotate(160deg) saturate(1.6) brightness(0.85)' }
+
 const HUD_FALLBACK = { pos: 'pos', seed: 'world', objects: 'objects', own: 'own', others: 'others', saved: 'saved', total: 'total' }
 
 export class WorldView {
@@ -35,6 +38,9 @@ export class WorldView {
     // Vida del jugador y el último golpe recibido: los fija la app.
     this.playerHp = null
     this.hurtAt = -Infinity
+    // Los demás jugadores: [{ x, y, facing, walking }]. Los fija la app con lo que llega por red.
+    this.others = []
+    this._shown = new Map() // pk → { x, y } dibujado: se acerca suave a lo último recibido
     this._raf = null
   }
 
@@ -155,6 +161,29 @@ export class WorldView {
     // Personaje propio, en el centro: sombra bajo los pies y el sprite encima.
     const pcx = w / 2
     const pcy = h / 2
+    // Los demás jugadores, con el mismo sprite, donde dicen estar.
+    if (this.player.ready) {
+      const now = performance.now()
+      const seen = new Set()
+      for (const o of this.others) {
+        // Llegan ~5 posiciones por segundo: entre una y otra se interpola para que no salte.
+        seen.add(o.pk)
+        let d = this._shown.get(o.pk)
+        if (!d || Math.abs(d.x - o.x) + Math.abs(d.y - o.y) > 6) d = { x: o.x, y: o.y }
+        d.x += (o.x - d.x) * 0.25
+        d.y += (o.y - d.y) * 0.25
+        this._shown.set(o.pk, d)
+        const ox = pcx + (d.x - camera.x) * tileSize
+        const oy = pcy + (d.y - camera.y) * tileSize
+        if (ox < -tileSize || oy < -tileSize || ox > w + tileSize || oy > h + tileSize) continue
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
+        ctx.beginPath()
+        ctx.ellipse(ox, oy + tileSize * 0.42, tileSize * 0.3, tileSize * 0.11, 0, 0, Math.PI * 2)
+        ctx.fill()
+        this.player.draw(ctx, o.facing || 0, o.walking ? walkFrame(now) : 0, Math.floor(ox - tileSize / 2), Math.floor(oy - tileSize / 2), tileSize)
+      }
+      for (const pk of this._shown.keys()) if (!seen.has(pk)) this._shown.delete(pk)
+    }
     ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
     ctx.beginPath()
     ctx.ellipse(pcx, pcy + tileSize * 0.42, tileSize * 0.3, tileSize * 0.11, 0, 0, Math.PI * 2)
@@ -257,12 +286,21 @@ export class WorldView {
     const ctx = this.ctx
     const row = actorRow(a)
     if (row !== null && this.actors.ready) {
+      // Tamaño según su papel en el grupo (esbirro más pequeño, líder y jefe más grandes),
+      // con los pies en el mismo sitio: crece hacia arriba y hacia los lados.
+      const scale = a.payload?.scale || 1
+      const size = Math.round(ts * scale)
+      const dx = Math.floor(px + ts / 2 - size / 2)
+      const dy = Math.floor(py + ts - size)
       ctx.fillStyle = 'rgba(0,0,0,0.25)'
       ctx.beginPath()
-      ctx.ellipse(px + ts / 2, py + ts * 0.92, ts * 0.3, ts * 0.11, 0, 0, Math.PI * 2)
+      ctx.ellipse(px + ts / 2, py + ts * 0.92, ts * 0.3 * scale, ts * 0.11 * scale, 0, 0, Math.PI * 2)
       ctx.fill()
-      this.actors.draw(ctx, row, idleFrame(performance.now(), phaseOf(a.id)), Math.floor(px), Math.floor(py), ts)
-      this._actorHp(a, px, py, ts)
+      const tint = ROLE_TINT[a.payload?.role]
+      if (tint) ctx.filter = tint
+      this.actors.draw(ctx, row, idleFrame(performance.now(), phaseOf(a.id)), dx, dy, size)
+      if (tint) ctx.filter = 'none'
+      this._actorHp(a, dx, dy, size)
       return
     }
     if (this.sheet.draw(ctx, a.type, px, py, ts)) return
@@ -274,7 +312,8 @@ export class WorldView {
   /** Barra de vida de un actor, solo si está herido. */
   _actorHp (a, px, py, ts) {
     const p = a.payload
-    if (!p?.max_hp || p.hp >= p.max_hp) return
+    // El jefe enseña su vida siempre; los demás, solo heridos.
+    if (!p?.max_hp || (p.hp >= p.max_hp && p.role !== 'boss')) return
     this._hpBar(px, py, ts, p.hp, p.max_hp, a.type === 'enemy' ? '#e04040' : '#e0a030')
   }
 
