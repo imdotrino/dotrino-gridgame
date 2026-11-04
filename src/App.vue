@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watchEffect, shallowRef } from 'vue'
 import { messages, detectLang } from './i18n.js'
-import { WorldView } from './render/WorldView.js'
+import { WorldView, MAX_FPS } from './render/WorldView.js'
 import { ProceduralGround } from './world/ProceduralGround.js'
 import { LocalStore } from './world/LocalStore.js'
 import { PeerLink } from './net/PeerLink.js'
@@ -195,14 +195,16 @@ function tryStep (dx, dy) {
 
 // Velocidad en casillas por SEGUNDO, no por fotograma: antes eran 0,15 por fotograma, así
 // que a 144 Hz se corría el doble y a 30 fps (pestaña cargada, portátil ahorrando) se iba
-// a la mitad y a saltos. El paso de tiempo se topa en 50 ms para que una pausa larga
+// a la mitad y a saltos. El paso de tiempo se topa en 100 ms para que una pausa larga
 // (cambiar de pestaña) no te teletransporte.
 const WALK_TILES_PER_S = 9
 let lastMoveAt = 0
 function tickMove () {
   if (!view) return
   const tNow = performance.now()
-  const dt = Math.min(50, lastMoveAt ? tNow - lastMoveAt : 16.7) / 1000
+  // La lógica va al mismo ritmo que el dibujo (30 por segundo): más vueltas no se verían.
+  if (lastMoveAt && tNow - lastMoveAt < 1000 / MAX_FPS - 2) { moveRaf = requestAnimationFrame(tickMove); return }
+  const dt = Math.min(100, lastMoveAt ? tNow - lastMoveAt : 33) / 1000
   lastMoveAt = tNow
   const here = passableAt(view.camera.x, view.camera.y, view.ground, store)
   const speed = WALK_TILES_PER_S * dt * (here.passable ? here.speed : 1)

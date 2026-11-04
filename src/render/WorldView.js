@@ -13,6 +13,9 @@ import { ActorSheet, actorRow, idleFrame, phaseOf } from './actors.js'
 // Las etiquetas del HUD también (hudLabels): el canvas queda fuera de Vue, así
 // que la app pasa un getter y cada frame dibuja en el idioma activo (§9).
 
+export const MAX_FPS = 30
+const FRAME_MS = 1000 / MAX_FPS
+
 // Color por papel: el líder tira a dorado y el jefe a morado, para leerlos de un vistazo.
 const ROLE_TINT = { leader: 'hue-rotate(-55deg) saturate(1.4)', boss: 'hue-rotate(160deg) saturate(1.6) brightness(0.85)' }
 
@@ -58,11 +61,18 @@ export class WorldView {
 
   start () {
     if (this._raf) return
-    const loop = () => {
-      this.draw()
+    // Tope de 30 fotogramas por segundo (dueño, 2026-11-04): para este juego, 60 o 144
+    // es gastar batería y CPU sin ver nada mejor. Se sigue usando requestAnimationFrame
+    // (se para solo con la pestaña oculta) y se salta el que llega antes de tiempo. El
+    // margen de 2 ms evita que a 60 Hz, por el temblor del reloj, salgan 20 en vez de 30.
+    let last = 0
+    const loop = (t) => {
       this._raf = requestAnimationFrame(loop)
+      if (t - last < FRAME_MS - 2) return
+      last = t
+      this.draw()
     }
-    loop()
+    this._raf = requestAnimationFrame(loop)
   }
 
   stop () {
