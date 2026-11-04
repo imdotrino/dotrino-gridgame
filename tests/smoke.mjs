@@ -11,7 +11,7 @@ import { facingFor, walkFrame } from '../src/render/player.js'
 import { actorRow, idleFrame, phaseOf } from '../src/render/actors.js'
 import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
 import { CombatHost } from '../src/combat.js'
-import { PositionSaver } from '../src/save.js'
+import { PositionSaver, loadPosition, POS_THREAD } from '../src/save.js'
 
 let passed = 0, failed = 0
 function eq (label, a, b) {
@@ -195,6 +195,14 @@ sv.update(10.4, 0); sv.update(12.2, 0); sv.update(11.8, 0)
 await sv.flush()
 eq('varias casillas seguidas, un solo guardado', ops.length, 4)
 clearTimeout(sv.timer)
+eq('el hilo de la posición es local (no va a la bóveda)', POS_THREAD, 'local.gridgame.position')
+const threads = { 'gridgame.position': [{ id: 'pos', ts: 1, pos: { x: 7, y: -3 } }] }
+const mig = {
+  listThread: async (k) => threads[k] || [],
+  removeThread: async (k) => { delete threads[k] }
+}
+eq('migra la posición vieja', await loadPosition(mig), { x: 7, y: -3 })
+eq('y borra el hilo viejo (sale también de la bóveda)', Object.keys(threads), [])
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

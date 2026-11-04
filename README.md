@@ -95,11 +95,11 @@ Aparecen solos alrededor de cada jugador para atacarlo a él y a lo que construy
 
 ## Volver a donde estabas
 
-La posición es del jugador, así que vive en el almacén del perfil (`@dotrino/store`, hilo
-`gridgame.position`, respaldado en la bóveda), no en `localStorage`. Se escribe como mucho
-cada 30 s y solo al cambiar de casilla, y siempre al ocultarse la pestaña (`src/save.js`):
-cada escritura del almacén dispara una sincronización con la bóveda. Si el
-almacén no abre, la pantalla lo dice: sin aviso, volver al origen parecería un fallo.
+La posición vive en el almacén del perfil (`@dotrino/store`), pero en el hilo
+`local.gridgame.position`: se queda en este aparato y **no va a la bóveda** (store ≥ 0.14.0).
+No merece respaldo, y cada escritura de un hilo normal es una sincronización. Se escribe
+como mucho una vez por segundo al cambiar de casilla, y siempre al ocultarse la pestaña
+(`src/save.js`). Si el almacén no abre, la pantalla lo dice.
 
 ## Pruebas
 
