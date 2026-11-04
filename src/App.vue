@@ -153,7 +153,7 @@ function sendPosition (now) {
   if (now - lastPosSentAt < (changed ? 200 : 3000)) return
   lastPosSentAt = now
   lastPosSent = p
-  link.broadcastPosition(p.x, p.y, p.facing, p.walking)
+  link.broadcastPosition(p.x, p.y, p.facing, p.walking, { halfW: view.canvas.clientWidth / view.tileSize / 2, halfH: view.canvas.clientHeight / view.tileSize / 2 })
 }
 
 

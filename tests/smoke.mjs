@@ -12,7 +12,7 @@ import { actorRow, idleFrame, phaseOf } from '../src/render/actors.js'
 import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, makePack, chooseTarget, sightOf, wanderStep, ROLES, MIN_SPAWN_DIST, farFromAll, packGone, PACK_GONE_DIST, LEASH_RADIUS, mustReturn, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
 import { CombatHost } from '../src/combat.js'
 import { PositionSaver, loadPosition, POS_THREAD } from '../src/save.js'
-import { PeerLink, INTEREST_RADIUS } from '../src/net/PeerLink.js'
+import { PeerLink } from '../src/net/PeerLink.js'
 import { PlayerLife, MAX_HP, RESPAWN_MS, PROTECT_MS } from '../src/world/life.js'
 
 let passed = 0, failed = 0
@@ -297,34 +297,58 @@ eq('fuera de la zona de todos, se va', packGone([{ pos: { x: 0, y: 40 } }], [{ x
   truthy('mi monstruo quieto se reenvía (latido)', sent.includes('mine1'))
 }
 
-console.log('12f) Salir de mi host cuando no queda vínculo')
+console.log('12f) Seguir a un jugador fuera de mi vista hasta que no tenga elementos relacionados')
 {
   const st = new LocalStore({ myPeerId: 'me' })
   const sent = []
   const pl = Object.create(PeerLink.prototype)
   Object.assign(pl, {
     store: st, myPubkey: 'me', myToken: 'tme', unreachable: new Map(), _listeners: new Set(),
-    peers: new Map([['bob', { token: 'tbob' }]]), playerPositions: new Map(), linked: new Set(), _farPosAt: new Map(), myPos: null,
+    peers: new Map([['bob', { token: 'tbob' }]]), playerPositions: new Map(), linked: new Set(), _farPosAt: new Map(), myPos: null, screen: null,
     _sendSealed: (pk, token, msg) => sent.push(`${pk}:${msg.type}:${msg.obj?.id || ''}`)
   })
+  const scr = { halfW: 10, halfH: 6 }   // zona de visión: ±20 × ±12
+  const at = (x, y) => pl.playerPositions.set('bob', { x, y, at: Date.now() })
   st.upsert({ id: 'myrock', type: 'prop', creator: 'me', ts: 1, pos: { x: 1, y: 0 }, payload: { kind: 'rock' } })
-  pl.broadcastPosition(0, 0, 0, false)
+  pl.broadcastPosition(0, 0, 0, false, scr)
   truthy('sin saber dónde está, está en mi host y recibe lo mío', pl.linked.has('bob') && sent.includes('bob:object_state:myrock'))
-  pl.playerPositions.set('bob', { x: INTEREST_RADIUS + 5, y: 0, at: Date.now() })
-  sent.length = 0
-  pl.broadcastPosition(0, 0, 0, false)
-  eq('lejos y sin monstruos míos cerca: sale de mi host', pl.linked.has('bob'), false)
+  at(18, 0); pl.broadcastPosition(0, 0, 0, false, scr)
+  eq('dentro de mi zona de visión: en mi host', pl.linked.has('bob'), true)
+  at(25, 0); sent.length = 0; pl.broadcastPosition(0, 0, 0, false, scr)
+  eq('fuera de mi vista y sin nada relacionado: sale de mi host', pl.linked.has('bob'), false)
   pl.broadcastObjectState({ id: 'x', creator: 'me', pos: { x: 0, y: 0 } })
   truthy('fuera de mi host no recibe mis objetos', !sent.some((m) => m.includes('object_state')))
   truthy('pero sí mi posición, de vez en cuando', sent.includes('bob:player_pos:'))
   sent.length = 0
-  pl.broadcastPosition(0, 0, 0, true)
+  pl.broadcastPosition(0, 0, 0, true, scr)
   eq('no a cada paso', sent.filter((m) => m.includes('player_pos')).length, 0)
-  // Un monstruo mío cerca de él: vuelve a haber vínculo, y le mando todo lo mío.
-  st.upsert({ id: 'mymob', type: 'enemy', creator: 'me', ts: 1, pos: { x: INTEREST_RADIUS + 2, y: 0 }, payload: {} })
-  pl.broadcastPosition(0, 0, 0, false)
-  truthy('un monstruo mío cerca de él lo mantiene en mi host', pl.linked.has('bob'))
-  truthy('al volver recibe todo lo mío de una vez', sent.includes('bob:object_state:myrock') && sent.includes('bob:object_state:mymob'))
+  // Un monstruo SUYO en mi zona: vínculo.
+  st.upsert({ id: 'bobmob', type: 'enemy', creator: 'bob', ts: 1, pos: { x: 5, y: 0 }, payload: {} }, { creatorOnline: true })
+  pl.broadcastPosition(0, 0, 0, false, scr)
+  truthy('un monstruo suyo en mi zona lo mantiene', pl.linked.has('bob'))
+  truthy('al volver recibe todo lo mío de una vez', sent.includes('bob:object_state:myrock'))
+  st.remove('bobmob'); pl.broadcastPosition(0, 0, 0, false, scr)
+  eq('sin él, sale otra vez', pl.linked.has('bob'), false)
+  // Un monstruo MÍO que lo persigue porque le pegó, aunque esté lejos de los dos.
+  at(200, 0)
+  st.upsert({ id: 'chaser', type: 'enemy', creator: 'me', ts: 1, pos: { x: 100, y: 0 }, payload: { provoked: true, provokedBy: 'bob' } })
+  pl.broadcastPosition(0, 0, 0, false, scr)
+  truthy('un monstruo mío que lo persigue lo mantiene, aunque esté lejos', pl.linked.has('bob'))
+  st.upsert({ id: 'chaser', type: 'enemy', creator: 'me', ts: 2, pos: { x: 100, y: 0 }, payload: { provoked: false, provokedBy: null } })
+  pl.broadcastPosition(0, 0, 0, false, scr)
+  eq('calmado el monstruo, ya no queda nada: sale', pl.linked.has('bob'), false)
+  // Un monstruo mío en SU zona.
+  st.upsert({ id: 'nearbob', type: 'enemy', creator: 'me', ts: 1, pos: { x: 195, y: 3 }, payload: {} })
+  pl.broadcastPosition(0, 0, 0, false, scr)
+  truthy('un monstruo mío en su zona lo mantiene', pl.linked.has('bob'))
+}
+{
+  const hs = new LocalStore({ myPeerId: 'me' })
+  const hh = new CombatHost({ store: hs, myPubkey: 'me', onPlayerHit: () => {}, rand: rnd })
+  hs.upsert({ id: 'h1', type: 'enemy', creator: 'me', ts: 1, pos: { x: 3, y: 0 }, payload: { name: 'slime', hp: 10, pack: 'p', home: { x: 3, y: 0 } } })
+  hs.upsert({ id: 'h2', type: 'enemy', creator: 'me', ts: 1, pos: { x: 4, y: 0 }, payload: { name: 'slime', hp: 10, pack: 'p', home: { x: 4, y: 0 } } })
+  hh.applyHit('h1', 1, 'bob')
+  truthy('el golpe de otro anota quién fue, en todo el grupo', hs.get('h1').payload.provokedBy === 'bob' && hs.get('h2').payload.provokedBy === 'bob')
 }
 
 console.log('13) Guardar la posición no inunda la bóveda')

@@ -123,12 +123,18 @@ siguiente, y es lo que los monstruos miran para no aparecer cerca de nadie.
 
 ## Quién está en mi host
 
-Un jugador está en mi host mientras tenga **vínculo** conmigo: a 40 casillas o menos de mí, o
-de alguno de mis monstruos (`INTEREST_RADIUS`, `src/net/PeerLink.js`). Sin saber dónde está,
-cuenta como que sí. Fuera de mi host no se le manda lo mío (monstruos, objetos), solo mi
-posición cada 5 s, para que los dos notemos cuándo volvemos a estar cerca; al volver a
-entrar se le manda todo lo mío de una vez. Así también le llega todo a quien se conecta
-tarde.
+A un jugador se le sigue fuera de mi vista hasta que no tenga **ningún elemento relacionado**
+conmigo (`isLinked`, `src/net/PeerLink.js`). Vínculo es cualquiera de estos:
+
+- está en mi zona de visión (2× mi pantalla);
+- un monstruo mío está en su zona (medida con mi pantalla: la suya no la sé);
+- un monstruo suyo está en mi zona;
+- un monstruo mío lo persigue porque le pegó (`provokedBy`, hasta que se calma).
+
+Sin saber dónde está, cuenta como que sí. Sin vínculo sale de mi host: no se le manda lo mío
+(monstruos, objetos), solo mi posición cada 5 s, para que los dos notemos cuándo volvemos a
+estar cerca; al volver a entrar se le manda todo lo mío de una vez. Así también le llega todo
+a quien se conecta tarde.
 
 ## Volver a donde estabas
 

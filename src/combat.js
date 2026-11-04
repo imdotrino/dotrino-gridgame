@@ -165,7 +165,7 @@ export class CombatHost {
     const target = chooseTarget(m, player, structures, playerSafe)
     if (!target) {
       // Se le acabó la persecución (lejos de casa, o el jugador caído/protegido): se calma.
-      const payload = { ...m.payload, provoked: false }
+      const payload = { ...m.payload, provoked: false, provokedBy: null }
       if (mustReturn(m)) {
         // Fuera de su casa: vuelve andando, a paso normal.
         if (now - (m.payload.lastStepAt || 0) < STEP_MS) return
@@ -218,28 +218,30 @@ export class CombatHost {
 
   // ---------- damage (al dueño le llega hit; ataques locales si soy yo dueño) ----------
 
-  applyHit (enemyId, amount) {
+  /** `by`: pubkey de quien pegó (null = yo). Queda anotado como vínculo con él. */
+  applyHit (enemyId, amount, by = null) {
     const obj = this.store.get(enemyId)
     if (!obj || obj.creator !== this.myPubkey) return // solo el dueño aplica
     if (obj.type !== 'enemy') return
     const hp = (obj.payload.hp || 0) - amount
     // Pegarle enfada a él y a los de su grupo que estén cerca, aunque su ira sea 0.
-    this._provokePack(obj)
+    this._provokePack(obj, by)
     if (hp <= 0) {
       this._announceDeath(obj)
       this.store.remove(obj.id)
       this.peerLink?.broadcastObjectGone(obj.id)
     } else {
       const cur = this.store.get(obj.id)
-      this._publish({ ...cur, ts: Date.now(), payload: { ...cur.payload, hp, provoked: true } })
+      this._publish({ ...cur, ts: Date.now(), payload: { ...cur.payload, hp, provoked: true, ...(by ? { provokedBy: by } : {}) } })
     }
   }
 
-  _provokePack (hit) {
+  /** Provoca al golpeado y a su grupo cercano; `provokedBy` dice quién (vínculo con ese jugador). */
+  _provokePack (hit, by) {
     for (const m of this.myMonsters()) {
-      if (m.payload.provoked) continue
+      if (m.payload.provoked && (!by || m.payload.provokedBy === by)) continue
       const same = m.id === hit.id || (hit.payload.pack && m.payload.pack === hit.payload.pack && chebyshev(m.pos, hit.pos) <= PROVOKE_RADIUS)
-      if (same) this._publish({ ...m, ts: Date.now(), payload: { ...m.payload, provoked: true } })
+      if (same) this._publish({ ...m, ts: Date.now(), payload: { ...m.payload, provoked: true, ...(by ? { provokedBy: by } : {}) } })
     }
   }
 
@@ -260,7 +262,7 @@ export class CombatHost {
   // ---------- net ----------
 
   _onNet (e) {
-    if (e.kind === 'hit') this.applyHit(e.enemyId, e.amount)
+    if (e.kind === 'hit') this.applyHit(e.enemyId, e.amount, e.by || null)
     else if (e.kind === 'enemy_died') {
       // Cualquier peer (no-dueño) instancia su propia copia local del loot.
       this._instantiateLoot(e.loot_template || [], e.pos)

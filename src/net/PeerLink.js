@@ -32,11 +32,16 @@ const DISCOVERY_MS = 5000
 // un hecho permanente (se arregla en cuanto actualice su app), y preguntar en cada
 // fotograma sería una tormenta de peticiones.
 const RETRY_UNREACHABLE_MS = 30000
-// INTERÉS (dueño, 2026-11-04): un jugador sale de mi host cuando ya no tiene ningún vínculo
-// conmigo: ni está cerca de mí ni cerca de ninguno de mis monstruos. Fuera, no se le manda
-// lo mío (monstruos, objetos), solo mi posición de vez en cuando, para que los dos sepamos
-// cuándo volvemos a estar cerca. Al volver a entrar se le manda todo lo mío de una vez.
-export const INTEREST_RADIUS = 40
+// INTERÉS (dueño, 2026-11-04): a un jugador se le sigue fuera de mi vista hasta que no tenga
+// ningún elemento relacionado conmigo. Vínculo, cualquiera de estos:
+//   - está en mi zona de visión (2× mi pantalla),
+//   - un monstruo mío está en su zona (la mido con mi pantalla: la suya no la sé),
+//   - un monstruo suyo está en mi zona,
+//   - un monstruo mío va a por él porque le pegó (`provokedBy`).
+// Sin vínculo sale de mi host: no se le manda lo mío, solo mi posición de vez en cuando,
+// para que los dos notemos cuándo volvemos a estar cerca. Al volver a entrar se le manda
+// todo lo mío de una vez.
+const MEMORY_FACTOR = 2
 const FAR_POS_EVERY_MS = 5000
 const POS_STALE_MS = 15000
 const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
@@ -53,6 +58,7 @@ export class PeerLink {
     // los monstruos: no aparecen cerca de NINGÚN jugador.
     this.playerPositions = new Map()
     this.myPos = null
+    this.screen = null            // media pantalla en casillas { halfW, halfH }: la pone la app
     this.linked = new Set()       // pubkeys en mi host (con vínculo)
     this._farPosAt = new Map()    // pubkey → última vez que le mandé mi posición estando lejos
 
@@ -144,8 +150,9 @@ export class PeerLink {
    * Dónde estoy. Va sellado como todo lo demás: la posición es del jugador. A quien está
    * en mi host, siempre; a quien no, cada FAR_POS_EVERY_MS (para notar que se acerca).
    */
-  broadcastPosition (x, y, facing, walking) {
+  broadcastPosition (x, y, facing, walking, screen = this.screen) {
     this.myPos = { x, y }
+    this.screen = screen
     this._refreshLinks()
     const msg = { type: 'player_pos', x, y, facing, walking: !!walking, ts: Date.now() }
     const now = Date.now()
@@ -160,15 +167,22 @@ export class PeerLink {
   }
 
   /**
-   * ¿Tiene vínculo conmigo? Cerca de mí, o cerca de alguno de mis monstruos. Sin saber
-   * dónde está (todavía no habló, o hace rato que no) se cuenta como que sí: callarle a
-   * alguien por no saber dónde está sería dejarlo sin ver nada.
+   * ¿Tiene algún elemento relacionado conmigo? (ver INTERÉS arriba). Sin saber dónde está
+   * él, dónde estoy yo o cuánto mide mi pantalla, se cuenta como que sí: callarle a alguien
+   * por no saberlo sería dejarlo sin ver nada.
    */
   isLinked (pk) {
     const pos = this.playerPositions.get(pk)
-    if (!pos || Date.now() - pos.at > POS_STALE_MS || !this.myPos) return true
-    if (cheb(pos, this.myPos) <= INTEREST_RADIUS) return true
-    for (const o of this._mine()) if (o.type === 'enemy' && o.pos && cheb(o.pos, pos) <= INTEREST_RADIUS) return true
+    if (!pos || Date.now() - pos.at > POS_STALE_MS || !this.myPos || !this.screen) return true
+    const zw = this.screen.halfW * MEMORY_FACTOR
+    const zh = this.screen.halfH * MEMORY_FACTOR
+    const inZone = (p, c) => Math.abs(p.x - c.x) <= zw && Math.abs(p.y - c.y) <= zh
+    if (inZone(pos, this.myPos)) return true
+    for (const o of this.store.inRect(-Infinity, -Infinity, Infinity, Infinity)) {
+      if (o.type !== 'enemy' || !o.pos) continue
+      if (o.creator === this.myPubkey && (inZone(o.pos, pos) || o.payload?.provokedBy === pk)) return true
+      if (o.creator === pk && inZone(o.pos, this.myPos)) return true
+    }
     return false
   }
 
