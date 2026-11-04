@@ -150,11 +150,12 @@ export class PeerLink {
    * Dónde estoy. Va sellado como todo lo demás: la posición es del jugador. A quien está
    * en mi host, siempre; a quien no, cada FAR_POS_EVERY_MS (para notar que se acerca).
    */
-  broadcastPosition (x, y, facing, walking, screen = this.screen) {
+  broadcastPosition (x, y, facing, walking, screen = this.screen, safe = false) {
     this.myPos = { x, y }
     this.screen = screen
     this._refreshLinks()
-    const msg = { type: 'player_pos', x, y, facing, walking: !!walking, ts: Date.now() }
+    // `safe`: caído o recién reaparecido; los monstruos de los demás no van a por mí.
+    const msg = { type: 'player_pos', x, y, facing, walking: !!walking, safe: !!safe, ts: Date.now() }
     const now = Date.now()
     for (const [pubkey, peer] of this.peers) {
       if (!peer.token || peer.token === this.myToken) continue
@@ -216,6 +217,16 @@ export class PeerLink {
 
   broadcastObjectGone (id) {
     this._sendToAll({ type: 'object_gone', id, ts: Date.now() })
+  }
+
+  /**
+   * Un monstruo mío le pega a `pk`. No va el daño: lo lee él del monstruo que ya tiene
+   * (así nadie puede mandar un golpe de 1000).
+   */
+  sendPlayerHit (pk, enemyId) {
+    const peer = this.peers.get(pk)
+    if (!peer?.token) return
+    this._sendSealed(pk, peer.token, { type: 'player_hit', enemyId, ts: Date.now() })
   }
 
   broadcastHit (enemyId, ownerPubkey, amount) {
@@ -309,9 +320,20 @@ export class PeerLink {
           this._emit({ kind: 'rejected', from: pk || fromToken, reason: 'bad-position' })
           break
         }
-        this.playerPositions.set(pk, { x: msg.x, y: msg.y, facing: (msg.facing | 0) & 3, walking: !!msg.walking, at: Date.now() })
+        this.playerPositions.set(pk, { x: msg.x, y: msg.y, facing: (msg.facing | 0) & 3, walking: !!msg.walking, safe: !!msg.safe, at: Date.now() })
         this._refreshLinks()
         break
+      case 'player_hit': {
+        // Solo vale si el monstruo es de quien lo manda, lo tengo, y está pegado a mí. El
+        // daño sale del monstruo que tengo, no del mensaje.
+        const mob = msg.enemyId ? this.store.get(msg.enemyId) : null
+        if (!pk || !mob || mob.type !== 'enemy' || mob.creator !== pk || !this.myPos || cheb(mob.pos, { x: Math.round(this.myPos.x), y: Math.round(this.myPos.y) }) > 2) {
+          this._emit({ kind: 'rejected', from: pk || fromToken, reason: 'bad-player-hit', id: msg.enemyId })
+          break
+        }
+        this._emit({ kind: 'player_hit', by: pk, enemyId: mob.id, dmg: Math.max(0, mob.payload?.dmg | 0) })
+        break
+      }
       case 'hit':
         // Solo el dueño autoritativo lo procesa. Re-emit como evento local.
         this._emit({ kind: 'hit', enemyId: msg.enemyId, by: pk, amount: msg.amount })

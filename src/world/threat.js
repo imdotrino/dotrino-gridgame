@@ -137,14 +137,25 @@ export const sightOf = (aggro) => Math.round(Math.max(0, aggro || 0) * AGGRO_RAN
  * A quién va. Provocado: a por el jugador, esté donde esté su vista. Si no, lo más cercano
  * que VEA (jugador o estructura dentro de su vista). Null: nada que hacer, está tranquilo.
  *
+ * Provocado por OTRO jugador (`provokedBy`): va a por ESE jugador, con la posición que
+ * llega por la red (`others`: [{ pk, x, y, safe }]). Si no se sabe dónde está, o está caído
+ * o protegido, o fuera de la correa, se rinde.
+ *
  * Dos límites, y valen también provocado:
  *   - `playerSafe`: el jugador está caído o recién reaparecido: no se le elige.
  *   - la CORREA: nada a más de LEASH_RADIUS de la casa de su grupo. Si lo sacas de ahí,
  *     se rinde y vuelve (`mustReturn`).
  */
-export function chooseTarget (m, player, structures, playerSafe = false) {
+export function chooseTarget (m, player, structures, playerSafe = false, others = []) {
   const home = m.payload?.home
   const inLeash = (p) => !home || chebyshev(p, home) <= LEASH_RADIUS
+  const by = m.payload?.provoked && m.payload?.provokedBy
+  if (by) {
+    const o = others.find((q) => q.pk === by)
+    if (!o || o.safe || !inLeash(o)) return null
+    const pos = { x: o.x, y: o.y }
+    return { kind: 'peer', pk: by, pos, d: chebyshev(m.pos, pos) }
+  }
   const playerOk = !playerSafe && inLeash(player)
   if (m.payload?.provoked && playerOk) return { kind: 'player', pos: player, d: chebyshev(m.pos, player) }
   const sight = sightOf(m.payload?.aggro)

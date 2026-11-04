@@ -105,7 +105,12 @@ Aparecen solos, en **grupos**, alrededor de cada jugador (`src/world/threat.js`,
   nivel ni XP. Hasta saberla, no aparece ninguno nuevo.
 - **Quién los hostea**: el jugador amenazado. Su vida, su movimiento y su golpe los decide
   él, así que para quien se defiende no hay latencia; el amigo que ayuda manda su golpe
-  al dueño (`hit`). Provocados, van a por el jugador que los hostea.
+  al dueño (`hit`).
+- **Provocados, persiguen a quien les pegó** (`provokedBy`), con la posición que llega por
+  la red. Al alcanzarlo le mandan el golpe (`player_hit`): él solo lo acepta si el monstruo
+  es de quien lo manda y está pegado a él, y el daño lo lee del monstruo, no del mensaje.
+  Si está caído o protegido (`safe` en su posición), si no se sabe dónde está o si sale de
+  la correa, se rinden.
 - Caminan por el camino más corto (búsqueda en anchura de 12 casillas) y rompen lo que
   construiste (20 de vida).
 - **Tu vida** (`src/world/life.js`): 20, se recupera sola tras 5 s sin golpes. A cero

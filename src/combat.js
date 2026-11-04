@@ -62,7 +62,7 @@ export class CombatHost {
    * @param {{x:number,y:number}} player posición del jugador (casilla)
    * @param {number} rep reputación del jugador ∈ [0,1]
    * @param {(x:number,y:number) => boolean} isPassable
-   * @param {{x:number,y:number}[]} others posiciones de los demás jugadores conocidos
+   * @param {{pk:string,x:number,y:number,safe?:boolean}[]} others los demás jugadores conocidos
    */
   tick (now, { player, rep, isPassable, others = [], playerSafe = false, screen = null }) {
     // Los grupos que salieron de pantalla (y quedaron lejos) se van, y dejan sitio: el
@@ -85,7 +85,7 @@ export class CombatHost {
       }
     }
 
-    for (const m of monsters) this._act(m, now, player, structures, isPassable, playerSafe)
+    for (const m of monsters) this._act(m, now, player, structures, isPassable, playerSafe, others)
   }
 
   /**
@@ -156,13 +156,13 @@ export class CombatHost {
   // Los objetos del almacén NO se mutan: está indexado por casilla, y cambiar `pos` en
   // el sitio dejaría el monstruo apuntado en la casilla vieja. Cada cambio es un objeto
   // nuevo con `ts` nuevo.
-  _act (m, now, player, structures, isPassable, playerSafe) {
+  _act (m, now, player, structures, isPassable, playerSafe, others = []) {
     if (chebyshev(m.pos, player) > DESPAWN_RADIUS) {
       this.store.remove(m.id)
       this.peerLink?.broadcastObjectGone(m.id)
       return
     }
-    const target = chooseTarget(m, player, structures, playerSafe)
+    const target = chooseTarget(m, player, structures, playerSafe, others)
     if (!target) {
       // Se le acabó la persecución (lejos de casa, o el jugador caído/protegido): se calma.
       const payload = { ...m.payload, provoked: false, provokedBy: null }
@@ -188,6 +188,8 @@ export class CombatHost {
       // El reloj del golpe es solo del dueño: no hace falta publicarlo.
       this.store.upsert({ ...m, ts: Date.now(), payload: { ...m.payload, lastAttackAt: now } }, { creatorOnline: true })
       if (target.kind === 'player') this.onPlayerHit(m.payload.dmg, m)
+      // A otro jugador el golpe le llega por la red; él decide (caído, protegido…).
+      else if (target.kind === 'peer') this.peerLink?.sendPlayerHit(target.pk, m.id)
       else this._damageStructure(target.obj, m.payload.dmg)
       return
     }

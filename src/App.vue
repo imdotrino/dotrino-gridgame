@@ -102,6 +102,9 @@ function onNetEvent (e) {
     unreachable.value = [...unreachable.value.filter((u) => u.pk !== e.pk), { pk: e.pk, code: e.code }]
   } else if (e.kind === 'peer-reachable' || e.kind === 'peer-offline') {
     unreachable.value = unreachable.value.filter((u) => u.pk !== e.pk)
+  } else if (e.kind === 'player_hit') {
+    // Un monstruo de otro jugador, provocado por mí, me alcanzó.
+    onPlayerHit(e.dmg)
   }
 }
 // El estado se guarda como CLAVE, no como texto ya traducido: así cambiar de
@@ -148,12 +151,12 @@ let lastPosSentAt = 0
 let lastPosSent = null
 function sendPosition (now) {
   if (!link) return
-  const p = { x: Math.round(view.camera.x * 10) / 10, y: Math.round(view.camera.y * 10) / 10, facing: view.facing, walking: view.walking }
-  const changed = !lastPosSent || p.x !== lastPosSent.x || p.y !== lastPosSent.y || p.facing !== lastPosSent.facing || p.walking !== lastPosSent.walking
+  const p = { x: Math.round(view.camera.x * 10) / 10, y: Math.round(view.camera.y * 10) / 10, facing: view.facing, walking: view.walking, safe: life.isSafe(now) }
+  const changed = !lastPosSent || p.x !== lastPosSent.x || p.y !== lastPosSent.y || p.facing !== lastPosSent.facing || p.walking !== lastPosSent.walking || p.safe !== lastPosSent.safe
   if (now - lastPosSentAt < (changed ? 200 : 3000)) return
   lastPosSentAt = now
   lastPosSent = p
-  link.broadcastPosition(p.x, p.y, p.facing, p.walking, { halfW: view.canvas.clientWidth / view.tileSize / 2, halfH: view.canvas.clientHeight / view.tileSize / 2 })
+  link.broadcastPosition(p.x, p.y, p.facing, p.walking, { halfW: view.canvas.clientWidth / view.tileSize / 2, halfH: view.canvas.clientHeight / view.tileSize / 2 }, p.safe)
 }
 
 
@@ -234,7 +237,7 @@ function tickMove () {
     player: myTilePos(),
     rep: standing,
     isPassable: (x, y) => passableAt(x, y, view.ground, store).passable,
-    others: others.map((o) => ({ x: Math.round(o.x), y: Math.round(o.y) })),
+    others: others.map((o) => ({ pk: o.pk, x: Math.round(o.x), y: Math.round(o.y), safe: !!o.safe })),
     playerSafe: life.isSafe(now),
     // Media pantalla en casillas: un grupo que sale del doble de esto (y queda lejos) se elimina.
     screen: { halfW: view.canvas.clientWidth / view.tileSize / 2, halfH: view.canvas.clientHeight / view.tileSize / 2 }

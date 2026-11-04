@@ -351,6 +351,42 @@ console.log('12f) Seguir a un jugador fuera de mi vista hasta que no tenga eleme
   truthy('el golpe de otro anota quién fue, en todo el grupo', hs.get('h1').payload.provokedBy === 'bob' && hs.get('h2').payload.provokedBy === 'bob')
 }
 
+console.log('12g) El provocado persigue a quien le pegó')
+{
+  const bobAt = { pk: 'bob', x: 10, y: 0 }
+  const prov = { pos: { x: 5, y: 0 }, payload: { aggro: 0, provoked: true, provokedBy: 'bob', home: { x: 5, y: 0 } } }
+  const t1 = chooseTarget(prov, { x: 0, y: 0 }, [], false, [bobAt])
+  truthy('va a por bob, no a por mí', t1 && t1.kind === 'peer' && t1.pk === 'bob')
+  eq('bob caído o protegido: se rinde', chooseTarget(prov, { x: 0, y: 0 }, [], false, [{ ...bobAt, safe: true }]), null)
+  eq('sin saber dónde está bob: se rinde', chooseTarget(prov, { x: 0, y: 0 }, [], false, []), null)
+  eq('bob fuera de la correa: se rinde', chooseTarget(prov, { x: 0, y: 0 }, [], false, [{ ...bobAt, x: 5 + LEASH_RADIUS + 1 }]), null)
+  // Con el host: camina hacia bob y, al llegar, le manda el golpe por la red.
+  const ps = new LocalStore({ myPeerId: 'me' })
+  const hitsTo = []
+  const fl = { subscribe: () => () => {}, broadcastObjectState: () => {}, broadcastObjectGone: () => {}, sendPlayerHit: (pk, id) => hitsTo.push(pk + ':' + id) }
+  let mine = 0
+  const ph = new CombatHost({ store: ps, myPubkey: 'me', onPlayerHit: () => { mine++ }, rand: rnd, peerLink: fl })
+  ps.upsert({ id: 'c1', type: 'enemy', creator: 'me', ts: 1, pos: { x: 5, y: 0 }, payload: { name: 'slime', hp: 10, dmg: 3, aggro: 0, provoked: true, provokedBy: 'bob', home: { x: 5, y: 0 } } })
+  let pt = 1
+  for (let i = 0; i < 15; i++) { pt += STEP_MS; ph.tick(pt, { player: { x: -3, y: 0 }, rep: null, isPassable: () => true, others: [{ pk: 'bob', x: 12, y: 0 }], screen: desk }) }
+  truthy('llega hasta bob', Math.abs(ps.get('c1').pos.x - 12) <= 1)
+  truthy('y el golpe va a bob, no a mí', hitsTo.includes('bob:c1') && mine === 0)
+}
+{
+  // Del lado de bob: solo acepta el golpe de un monstruo de quien lo manda, pegado a él, y
+  // el daño lo lee del monstruo.
+  const bs = new LocalStore({ myPeerId: 'bob' })
+  const evs = []
+  const bl = Object.create(PeerLink.prototype)
+  Object.assign(bl, { store: bs, myPubkey: 'bob', myPos: { x: 12, y: 0 }, _listeners: new Set([(e) => evs.push(e)]), tokenToPubkey: new Map([['tme', 'me']]), gating: { accept: () => ({ ok: true }) }, repOfSync: () => 0, playerPositions: new Map(), linked: new Set(), peers: new Map() })
+  bs.upsert({ id: 'c1', type: 'enemy', creator: 'me', ts: 1, pos: { x: 11, y: 0 }, payload: { dmg: 3 } }, { creatorOnline: true })
+  bl._onMessage('tme', { type: 'player_hit', enemyId: 'c1', dmg: 999 }, { sealed: true })
+  eq('acepta y el daño es el del monstruo, no el del mensaje', evs.filter((e) => e.kind === 'player_hit').map((e) => e.dmg), [3])
+  bs.upsert({ id: 'c1', type: 'enemy', creator: 'me', ts: 2, pos: { x: 30, y: 0 }, payload: { dmg: 3 } }, { creatorOnline: true })
+  bl._onMessage('tme', { type: 'player_hit', enemyId: 'c1' }, { sealed: true })
+  truthy('lejos de mí, se rechaza', evs.some((e) => e.kind === 'rejected' && e.reason === 'bad-player-hit'))
+}
+
 console.log('13) Guardar la posición no inunda la bóveda')
 const ops = []
 const fakeStore = { removeThread: async () => ops.push('rm'), appendMessage: async () => ops.push('add') }
