@@ -112,3 +112,31 @@ function aggregate (r) {
 }
 
 export function clearRepCache () { repCache.clear() }
+
+// Mi reputación TAL COMO LA VEN LOS DEMÁS (el registro compartido). No es repOfSync(yo),
+// que vale 1 a propósito: en MI pantalla lo mío gana los conflictos. Para la dificultad
+// de los monstruos y la fuerza de mis golpes lo que cuenta es lo que la red dice de mí.
+//   - sin bóveda: 0, y es un dato, no un hueco: sin identidad nadie responde por ti.
+//   - null: todavía no se sabe (o el registro nunca contestó). Quien la usa decide.
+let standing = null
+let standingAt = 0
+const STANDING_MS = 60_000
+
+export async function refreshMyStanding () {
+  if (!identity || !myPubkey) { standing = 0; return standing }
+  const rep = getRep()
+  if (!rep) throw new Error('reputation registry unavailable')
+  const r = await rep.reputationOf(myPubkey)
+  standing = r?.score != null ? Math.max(0, Math.min(1, r.score)) : 0
+  standingAt = Date.now()
+  return standing
+}
+
+/** Lo último que se sabe (null si nunca se supo). Refresca por detrás cada minuto. */
+export function myStandingSync () {
+  if (Date.now() - standingAt > STANDING_MS) {
+    standingAt = Date.now() // no pedirlo en cada frame mientras llega
+    refreshMyStanding().catch((e) => console.error('[gridgame] could not read my reputation', e))
+  }
+  return standing
+}

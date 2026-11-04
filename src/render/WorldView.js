@@ -32,6 +32,9 @@ export class WorldView {
     // Hacia dónde mira y si camina: lo fija la app en cada paso (setMotion).
     this.facing = 0 // fila del sprite: 0 abajo, 1 izquierda, 2 derecha, 3 arriba
     this.walking = false
+    // Vida del jugador y el último golpe recibido: los fija la app.
+    this.playerHp = null
+    this.hurtAt = -Infinity
     this._raf = null
   }
 
@@ -157,12 +160,20 @@ export class WorldView {
     ctx.ellipse(pcx, pcy + tileSize * 0.42, tileSize * 0.3, tileSize * 0.11, 0, 0, Math.PI * 2)
     ctx.fill()
     if (this.player.ready) {
-      const col = this.walking ? walkFrame(performance.now()) : 0
+      const now = performance.now()
+      const col = this.walking ? walkFrame(now) : 0
+      // Al recibir un golpe, parpadea un momento.
+      const hurt = now - this.hurtAt < 300
+      if (hurt && Math.floor(now / 60) % 2) ctx.globalAlpha = 0.35
       this.player.draw(ctx, this.facing, col, Math.floor(pcx - tileSize / 2), Math.floor(pcy - tileSize / 2), tileSize)
+      ctx.globalAlpha = 1
     } else {
       // Mientras carga (o si no cargó: PlayerSprite lo dice en consola).
       ctx.fillStyle = '#00658c'
       ctx.fillRect(pcx - tileSize / 3, pcy - tileSize / 3, tileSize * 2 / 3, tileSize * 2 / 3)
+    }
+    if (this.playerHp && this.playerHp.hp < this.playerHp.max) {
+      this._hpBar(pcx - tileSize / 2, pcy - tileSize / 2, tileSize, this.playerHp.hp, this.playerHp.max, '#4caf50')
     }
 
     // HUD (etiquetas en el idioma activo, §9).
@@ -213,11 +224,13 @@ export class WorldView {
       }
     }
     if (r.prop.winner) {
-      const kind = r.prop.winner.payload?.kind || 'prop_chest'
+      const pw = r.prop.winner
+      const kind = pw.payload?.kind || 'prop_chest'
       if (!this.sheet.draw(ctx, kind, px, py, ts)) {
         ctx.fillStyle = '#5a3a1a'
         ctx.fillRect(px + ts * 0.15, py + ts * 0.15, ts * 0.7, ts * 0.7)
       }
+      if (pw.payload?.max_hp && pw.payload.hp < pw.payload.max_hp) this._hpBar(px, py, ts, pw.payload.hp, pw.payload.max_hp, '#e0a030')
     }
     for (const it of r.items) {
       const kind = it.payload?.kind
@@ -249,10 +262,31 @@ export class WorldView {
       ctx.ellipse(px + ts / 2, py + ts * 0.92, ts * 0.3, ts * 0.11, 0, 0, Math.PI * 2)
       ctx.fill()
       this.actors.draw(ctx, row, idleFrame(performance.now(), phaseOf(a.id)), Math.floor(px), Math.floor(py), ts)
+      this._actorHp(a, px, py, ts)
       return
     }
     if (this.sheet.draw(ctx, a.type, px, py, ts)) return
     ctx.fillStyle = a.type === 'enemy' ? '#c0392b' : (a.type === 'npc' ? '#2ecc71' : '#3498db')
     ctx.fillRect(px + ts * 0.25, py + ts * 0.1, ts * 0.5, ts * 0.8)
+    this._actorHp(a, px, py, ts)
+  }
+
+  /** Barra de vida de un actor, solo si está herido. */
+  _actorHp (a, px, py, ts) {
+    const p = a.payload
+    if (!p?.max_hp || p.hp >= p.max_hp) return
+    this._hpBar(px, py, ts, p.hp, p.max_hp, a.type === 'enemy' ? '#e04040' : '#e0a030')
+  }
+
+  /** Barra fina sobre la casilla (px, py). */
+  _hpBar (px, py, ts, hp, max, color) {
+    const ctx = this.ctx
+    const w = ts * 0.8
+    const x = px + (ts - w) / 2
+    const y = py - 4
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'
+    ctx.fillRect(x - 1, y - 1, w + 2, 5)
+    ctx.fillStyle = color
+    ctx.fillRect(x, y, w * Math.max(0, hp) / max, 3)
   }
 }

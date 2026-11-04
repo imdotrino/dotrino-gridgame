@@ -29,6 +29,7 @@ export const messages = {
       offline: 'sin conexión',
       soloNoVault: 'partida de un jugador: sin tu perfil no se juega en red',
       saveFailed: 'no se puede guardar dónde estás: al recargar volverás al inicio',
+      downed: 'te derrotaron: vuelves al punto de partida',
     },
     // Cuando a alguien no se le puede mandar nada porque no hay con qué protegerlo.
     // Se dice en vez de callarlo: si no, ese jugador parece estar y no recibe nada.
@@ -45,7 +46,6 @@ export const messages = {
     hint: {
       move: 'moverte',
       rock: 'poner roca',
-      summon: 'invocar',
       merchant: 'poner mercader',
       attack: 'atacar',
       tiles: 'ver dibujos',
@@ -80,6 +80,7 @@ export const messages = {
       offline: 'offline',
       soloNoVault: 'single player: without your profile there is no online play',
       saveFailed: 'your position cannot be saved: reloading takes you back to the start',
+      downed: 'you were defeated: back to the starting point',
     },
     unreachable: {
       head: (n) => (n === 1 ? 'One player is not getting what you do:' : `${n} players are not getting what you do:`),
@@ -92,7 +93,6 @@ export const messages = {
     hint: {
       move: 'to move',
       rock: 'place rock',
-      summon: 'summon',
       merchant: 'place merchant',
       attack: 'attack',
       tiles: 'browse tiles',

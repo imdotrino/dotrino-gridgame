@@ -6,7 +6,7 @@ import { ProceduralGround } from './world/ProceduralGround.js'
 import { LocalStore } from './world/LocalStore.js'
 import { PeerLink } from './net/PeerLink.js'
 import { CombatHost } from './combat.js'
-import { initIdentity, getMyPubkey, getIdentity, getReputation, repOf, repOfSync, warmRep } from './identity.js'
+import { initIdentity, getMyPubkey, getIdentity, getReputation, repOf, repOfSync, warmRep, myStandingSync } from './identity.js'
 import { makeObject } from './objects/standard.js'
 import { openStore, loadPosition, PositionSaver } from './save.js'
 import { passableAt } from './world/collision.js'
@@ -109,15 +109,66 @@ let link = null
 let combat = null
 let myPk = null
 
+// Vida del jugador. Los monstruos que hosteo me pegan (CombatHost.onPlayerHit); a
+// cero vuelvo al punto de aparición con la vida llena. Sin golpes durante un rato,
+// se recupera sola.
+const MAX_HP = 20
+const REGEN_AFTER_MS = 5000
+const REGEN_EVERY_MS = 2000
+let hp = MAX_HP
+let lastHurtAt = 0
+let lastRegenAt = 0
+let spawnPoint = { x: 0, y: 0 }
+const downed = ref(false)
+let downedTimer = null
+
+function onPlayerHit (dmg) {
+  const now = performance.now()
+  hp = Math.max(0, hp - dmg)
+  lastHurtAt = now
+  view.hurtAt = now
+  if (hp === 0) die()
+  view.playerHp = { hp, max: MAX_HP }
+}
+
+function die () {
+  hp = MAX_HP
+  view.camera.x = spawnPoint.x
+  view.camera.y = spawnPoint.y
+  saver?.update(spawnPoint.x, spawnPoint.y)
+  downed.value = true
+  clearTimeout(downedTimer)
+  downedTimer = setTimeout(() => { downed.value = false }, 4000)
+}
+
+function regen (now) {
+  if (hp >= MAX_HP || now - lastHurtAt < REGEN_AFTER_MS || now - lastRegenAt < REGEN_EVERY_MS) return
+  lastRegenAt = now
+  hp += 1
+  view.playerHp = { hp, max: MAX_HP }
+}
+
+/** Primera casilla transitable en espiral desde (0, 0): la semilla puede poner agua ahí. */
+function findSpawnPoint () {
+  for (let r = 0; r < 200; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+        if (passableAt(dx, dy, view.ground, store).passable) return { x: dx, y: dy }
+      }
+    }
+  }
+  throw new Error('no passable spawn cell within 200 tiles of the origin')
+}
+
 const keys = new Set()
 let moveRaf = null
 
 function onKeyDown (e) {
   keys.add(e.key)
   // Acciones rápidas
-  if (e.key === 'q') tryPlaceRock()
-  if (e.key === 'e') trySummonSlime()
-  if (e.key === 'm') tryPlaceMerchant()
+  if (e.key === 'q') placeInFront('rock')
+  if (e.key === 'm') placeInFront('merchant')
   if (e.key === 'f') tryAttackNearest()
   if (e.key === 't') showPicker.value = !showPicker.value
   if (e.key === 'Escape') showPicker.value = false
@@ -150,6 +201,16 @@ function tickMove () {
     tryStep(dx, dy)
     saver?.update(view.camera.x, view.camera.y)
   }
+  const now = performance.now()
+  // Hasta saber qué dice la red de mí no aparecen monstruos nuevos: saldrían con una
+  // fuerza inventada. Los que ya hay siguen actuando.
+  const standing = myStandingSync()
+  combat?.tick(now, {
+    player: myTilePos(),
+    rep: standing,
+    isPassable: (x, y) => passableAt(x, y, view.ground, store).passable
+  })
+  regen(now)
   link?.setViewport({
     x0: Math.floor(view.camera.x) - 12,
     y0: Math.floor(view.camera.y) - 9,
@@ -163,25 +224,26 @@ function myTilePos () {
   return { x: Math.round(view.camera.x), y: Math.round(view.camera.y) }
 }
 
-function tryPlaceRock () {
+// Delante del personaje, hacia donde mira (fila del sprite: 0 abajo, 1 izquierda,
+// 2 derecha, 3 arriba). Antes la roca caía bajo los pies, y como es sólida te dejaba
+// encerrado: con monstruos persiguiéndote, eso es morir.
+const FACING_DIR = [[0, 1], [-1, 0], [1, 0], [0, -1]]
+function frontTile () {
+  const p = myTilePos()
+  const [dx, dy] = FACING_DIR[view.facing]
+  return { x: p.x + dx, y: p.y + dy }
+}
+
+/** Pone algo mío delante; en agua u ocupado por algo sólido, no. */
+function placeInFront (kind) {
   if (!myPk) return
-  const obj = makeObject('rock', { creator: myPk, ts: Date.now(), pos: myTilePos() })
+  const pos = frontTile()
+  if (!passableAt(pos.x, pos.y, view.ground, store).passable) return
+  const obj = makeObject(kind, { creator: myPk, ts: Date.now(), pos })
   store.upsert(obj, { creatorOnline: true })
   link?.broadcastObjectState(obj)
 }
 
-function tryPlaceMerchant () {
-  if (!myPk) return
-  const obj = makeObject('merchant', { creator: myPk, ts: Date.now(), pos: { x: myTilePos().x + 1, y: myTilePos().y } })
-  store.upsert(obj, { creatorOnline: true })
-  link?.broadcastObjectState(obj)
-}
-
-function trySummonSlime () {
-  if (!combat) return
-  const myRep = repOfSync(myPk)
-  combat.summon('slime', { x: myTilePos().x + 2, y: myTilePos().y }, myRep)
-}
 
 function tryAttackNearest () {
   if (!store) return
@@ -197,7 +259,9 @@ function tryAttackNearest () {
     if (target) break
   }
   if (!target) return
-  const amount = Math.max(1, Math.floor(5 * repOfSync(myPk) + 1))
+  // Sin saber aún mi reputación, el golpe es el base (1): no se inventa un bonus.
+  const standing = myStandingSync()
+  const amount = standing == null ? 1 : Math.max(1, Math.floor(5 * standing + 1))
   if (target.creator === myPk) {
     combat.applyHit(target.id, amount)
   } else {
@@ -235,22 +299,14 @@ onMounted(async () => {
     console.error('[gridgame] store unavailable: position is not saved', e)
     saveProblem.value = true
   }
-  if (saved && passableAt(saved.x, saved.y, view.ground, store).passable) {
-    view.camera.x = saved.x
-    view.camera.y = saved.y
-  } else {
-  // Primera vez (o lo guardado quedó tapado): aparecer en tierra firme; la celda
-  // (0, 0) puede ser agua según la semilla.
-  // Espiral hacia fuera hasta la primera celda transitable.
-  spawn: for (let r = 0; r < 200; r++) {
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
-        if (passableAt(dx, dy, view.ground, store).passable) { view.camera.x = dx; view.camera.y = dy; break spawn }
-      }
-    }
-  }
-  }
+  spawnPoint = findSpawnPoint()
+  // Primera vez (o lo guardado quedó tapado): el punto de aparición.
+  const start = saved && passableAt(saved.x, saved.y, view.ground, store).passable ? saved : spawnPoint
+  view.camera.x = start.x
+  view.camera.y = start.y
+  view.playerHp = { hp, max: MAX_HP }
+  // Los monstruos existen también sin red: los hosteo yo. La red se le cuelga después.
+  combat = new CombatHost({ store, myPubkey: myPk, onPlayerHit })
   view.resize()
   view.start()
   moveRaf = requestAnimationFrame(tickMove)
@@ -274,7 +330,7 @@ onMounted(async () => {
       link = new PeerLink({ store, identity: vault, repOfSync, url: import.meta.env.VITE_WS_URL || undefined })
       link.subscribe(onNetEvent)
       await link.start(myPk, vault)
-      combat = new CombatHost({ store, peerLink: link, myPubkey: myPk })
+      combat.setPeerLink(link)
       // Asidero para la prueba de punta a punta (`tests/sealed-net.e2e.mjs`): comprobar
       // que por el cable no viaja nada legible exige preguntarle a la red por su token y
       // provocar los fallos a propósito. No expone nada que no esté ya en la página.
@@ -341,10 +397,11 @@ onBeforeUnmount(() => {
     @dotrino-lang="onLang"
   ></dotrino-topbar>
   <div class="hint">
-    WASD {{ t.hint.move }} · <b>Q</b> {{ t.hint.rock }} · <b>E</b> {{ t.hint.summon }} · <b>M</b> {{ t.hint.merchant }} ·
+    WASD {{ t.hint.move }} · <b>Q</b> {{ t.hint.rock }} · <b>M</b> {{ t.hint.merchant }} ·
     <b>F</b> {{ t.hint.attack }} · <b>T</b> {{ t.hint.tiles }}
     <div class="status">{{ status }}</div>
     <div v-if="unreachableText" class="status warn">{{ unreachableText }}</div>
+    <div v-if="downed" class="status warn" data-testid="downed">{{ t.status.downed }}</div>
     <div v-if="saveProblem" class="status warn" data-testid="save-problem">{{ t.status.saveFailed }}</div>
   </div>
   <TilePicker v-if="showPicker" :lang="lang" @close="showPicker = false" />

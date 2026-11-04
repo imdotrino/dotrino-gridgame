@@ -9,6 +9,8 @@ import { makeObject, rulesFor } from '../src/objects/standard.js'
 import { LAYERS, layerOf, quadLayers, fullVariant } from '../src/render/terrain.js'
 import { facingFor, walkFrame } from '../src/render/player.js'
 import { actorRow, idleFrame, phaseOf } from '../src/render/actors.js'
+import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
+import { CombatHost } from '../src/combat.js'
 
 let passed = 0, failed = 0
 function eq (label, a, b) {
@@ -127,6 +129,56 @@ eq('mercader → fila 1', actorRow(makeObject('merchant', { creator: 'a', ts: 1,
 eq('sin sprite → null', actorRow({ type: 'enemy', payload: { name: 'dragon' } }), null)
 eq('ciclo de reposo', [0, 180, 360, 540].map((t) => idleFrame(t)), [0, 1, 0, 2])
 eq('desfase estable por id', phaseOf('alice:1'), phaseOf('alice:1'))
+
+console.log('12) Monstruos por hosteo + reputación')
+const t0 = threatFor({ hosted: 0, rep: 0 })
+const t6 = threatFor({ hosted: 6, rep: 0 })
+eq('sin construir: 1 a la vez', t0.maxAlive, 1)
+truthy('construir atrae más y más seguido', t6.maxAlive > t0.maxAlive && t6.intervalMs < t0.intervalMs)
+truthy('la reputación los hace más fuertes', threatFor({ hosted: 0, rep: 1 }).hp > t0.hp && threatFor({ hosted: 0, rep: 1 }).dmg > t0.dmg)
+eq('tope de 8', threatFor({ hosted: 100, rep: 0 }).maxAlive, 8)
+const mine = [
+  { id: 'r1', type: 'prop', creator: 'me', pos: { x: 3, y: 0 } },
+  { id: 'r2', type: 'prop', creator: 'me', pos: { x: 30, y: 0 } },
+  { id: 'o1', type: 'prop', creator: 'bob', pos: { x: 1, y: 0 } },
+  { id: 'e1', type: 'enemy', creator: 'me', pos: { x: 2, y: 0 } }
+]
+eq('cuenta solo lo mío, cerca y atacable', structuresNear(mine, 'me', { x: 0, y: 0 }).map((o) => o.id), ['r1'])
+eq('va a por lo más cercano', pickTarget({ x: 5, y: 0 }, { x: 0, y: 0 }, [mine[0]]).kind, 'structure')
+eq('paso recto hacia el objetivo', stepToward({ x: 0, y: 0 }, { x: 5, y: 0 }, () => true), { x: 1, y: 0 })
+// Pared en x=1 de y=-3 a y=3: tiene que rodearla.
+const wall = (x, y) => !(x === 1 && y >= -3 && y <= 3)
+const around = stepToward({ x: 0, y: 0 }, { x: 5, y: 0 }, wall)
+truthy('rodea una pared', around && around.x === 0 && Math.abs(around.y) === 1)
+eq('al lado del objetivo no se mueve', stepToward({ x: 0, y: 0 }, { x: 1, y: 1 }, () => true), null)
+eq('sin camino se queda quieto', stepToward({ x: 0, y: 0 }, { x: 5, y: 0 }, (x, y) => x === 0 && y === 0), null)
+const sp = spawnSpot({ x: 0, y: 0 }, () => 0.5, () => true)
+truthy('aparece en el anillo 6..9', Math.max(Math.abs(sp.x), Math.abs(sp.y)) >= 5 && Math.max(Math.abs(sp.x), Math.abs(sp.y)) <= 9)
+eq('rodeado de agua no aparece', spawnSpot({ x: 0, y: 0 }, Math.random, () => false), null)
+
+// Un combate entero sin red: aparece, camina, pega al jugador, rompe una roca.
+const cs = new LocalStore({ myPeerId: 'me' })
+let hits = 0
+const ch = new CombatHost({ store: cs, myPubkey: 'me', onPlayerHit: (d) => { hits += d } })
+const world = { player: { x: 0, y: 0 }, rep: 0, isPassable: () => true }
+let now = 1
+ch.tick(now, world)
+eq('aparece uno solo', ch.myMonsters().length, 1)
+for (let i = 0; i < 40; i++) { now += STEP_MS; ch.tick(now, world) }
+truthy('llega y pega al jugador', hits > 0)
+const m = ch.myMonsters()[0]
+truthy('el índice por casilla sigue al monstruo', cs.atTile(m.pos.x, m.pos.y).some((o) => o.id === m.id))
+let stale = 0
+for (let x = -10; x <= 10; x++) for (let y = -10; y <= 10; y++) for (const o of cs.atTile(x, y)) if (o.id === m.id && (o.pos.x !== x || o.pos.y !== y)) stale++
+eq('sin copias fantasma en casillas viejas', stale, 0)
+// Una roca mía más cerca del monstruo que yo: va a por ella y la rompe.
+cs.upsert({ id: 'rock1', type: 'prop', creator: 'me', ts: 1, pos: { x: m.pos.x + 1, y: m.pos.y }, payload: { kind: 'rock', solid: true } })
+const far = { ...world, player: { x: m.pos.x - 5, y: m.pos.y } }
+for (let i = 0; i < 25; i++) { now += ATTACK_MS; ch.tick(now, far) }
+eq('la roca cae', cs.get('rock1'), null)
+let threw = false
+try { new CombatHost({ store: cs, myPubkey: 'me' }) } catch { threw = true }
+truthy('sin onPlayerHit no arranca', threw)
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

@@ -191,23 +191,32 @@ export class PeerLink {
     if (!msg || !msg.type) return
 
     switch (msg.type) {
+      // Cada uno publica y borra SOLO lo suyo. Sin esto, cualquiera podía mandar un
+      // objeto a nombre de otro (un monstruo «tuyo», que tu partida trataría como propio)
+      // o borrarte lo que construiste.
       case 'object_state':
-        if (msg.obj && msg.obj.creator) {
-          this.store.upsert(msg.obj, { creatorOnline: true })
+        if (!pk || !msg.obj || msg.obj.creator !== pk) {
+          this._emit({ kind: 'rejected', from: pk || fromToken, reason: 'not-creator', id: msg.obj?.id })
+          break
         }
+        this.store.upsert(msg.obj, { creatorOnline: true })
         break
-      case 'object_gone':
-        if (msg.id) this.store.remove(msg.id)
+      case 'object_gone': {
+        const prev = msg.id ? this.store.get(msg.id) : null
+        if (!prev) break
+        if (prev.creator !== pk) {
+          this._emit({ kind: 'rejected', from: pk || fromToken, reason: 'not-creator', id: msg.id })
+          break
+        }
+        this.store.remove(msg.id)
         break
+      }
       case 'hit':
         // Solo el dueño autoritativo lo procesa. Re-emit como evento local.
         this._emit({ kind: 'hit', enemyId: msg.enemyId, by: pk, amount: msg.amount })
         break
       case 'enemy_died':
         this._emit({ kind: 'enemy_died', id: msg.id, loot_template: msg.loot_template, pos: msg.pos })
-        break
-      case 'summon_request':
-        this._emit({ kind: 'summon_request', from: pk, ts: msg.ts })
         break
     }
   }

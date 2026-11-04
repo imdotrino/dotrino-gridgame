@@ -72,7 +72,26 @@ según el movimiento y alterna los pasos al andar. `scripts/player/draw.py` lo r
 0 quieto, 1 y 2 las dos variaciones del reposo (0 → 1 → 0 → 2). `src/render/actors.js`
 elige la fila por `payload.name` y desfasa el ciclo por id para que no laten todos a la vez.
 Un actor sin fila sigue saliendo como rectángulo de color. `scripts/actors/draw.py` lo
-regenera. En el juego: **E** invoca un slime y **M** pone un mercader a tu lado.
+regenera. En el juego, **Q** pone una roca y **M** un mercader delante de ti.
+
+## Monstruos: nadie los invoca
+
+Aparecen solos alrededor de cada jugador para atacarlo a él y a lo que construyó
+(`src/world/threat.js`, `src/combat.js`):
+
+- **Cuántos y cada cuánto**: lo que hosteas cerca (tus rocas, cofres, mercaderes en 8
+  casillas). Sin nada construido, uno cada 40 s; con más, más a la vez (tope 8) y más seguido.
+- **Qué tan fuertes**: tu reputación tal como la ve la red (el registro compartido), no el
+  1 con que tu pantalla resuelve tus propios conflictos. No hay nivel ni XP. Hasta saberla,
+  no aparece ninguno nuevo.
+- **Quién los hostea**: el jugador amenazado. Su vida, su movimiento y su golpe los decide
+  él, así que para quien se defiende no hay latencia; el amigo que ayuda manda su golpe
+  al dueño (`hit`).
+- Caminan por el camino más corto (búsqueda en anchura de 12 casillas), atacan lo más
+  cercano entre tú y tus estructuras, y rompen lo que construiste (20 de vida). Tu vida
+  es 20, se recupera sola tras 5 s sin golpes, y a cero vuelves al punto de partida.
+- **Cada uno publica y borra solo lo suyo**: un `object_state` o un `object_gone` que no
+  viene de su creador se rechaza.
 
 ## Volver a donde estabas
 
