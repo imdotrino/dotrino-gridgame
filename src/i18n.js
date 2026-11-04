@@ -29,7 +29,6 @@ export const messages = {
       offline: 'sin conexión',
       soloNoVault: 'partida de un jugador: sin tu perfil no se juega en red',
       saveFailed: 'no se puede guardar dónde estás: al recargar volverás al inicio',
-      downed: 'te derrotaron: vuelves al punto de partida',
     },
     // Cuando a alguien no se le puede mandar nada porque no hay con qué protegerlo.
     // Se dice en vez de callarlo: si no, ese jugador parece estar y no recibe nada.
@@ -43,6 +42,11 @@ export const messages = {
     },
     // Recordatorio de teclas. Las letras (WASD, Q, E, F, T) son las teclas
     // físicas: no se traducen, solo lo que hace cada una.
+    life: {
+      defeated: 'Te derrotaron',
+      respawnIn: 'reapareces en el punto de partida',
+      protected: (n) => `protegido ${n} s`,
+    },
     hint: {
       move: 'moverte',
       rock: 'poner roca',
@@ -80,7 +84,6 @@ export const messages = {
       offline: 'offline',
       soloNoVault: 'single player: without your profile there is no online play',
       saveFailed: 'your position cannot be saved: reloading takes you back to the start',
-      downed: 'you were defeated: back to the starting point',
     },
     unreachable: {
       head: (n) => (n === 1 ? 'One player is not getting what you do:' : `${n} players are not getting what you do:`),
@@ -89,6 +92,11 @@ export const messages = {
       'no-encpub-support': 'the server you go through is an old one.',
       'no-peer-identity': 'they have not said who they are yet.',
       unknown: 'the message could not be protected.',
+    },
+    life: {
+      defeated: 'You were defeated',
+      respawnIn: 'you will reappear at the starting point',
+      protected: (n) => `protected ${n} s`,
     },
     hint: {
       move: 'to move',

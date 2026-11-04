@@ -91,14 +91,19 @@ Aparecen solos, en **grupos**, alrededor de cada jugador (`src/world/threat.js`,
 - **Ira** ∈ [0, 1]: la distancia a la que te ven es `ira × 10` casillas. Con ira 0 no
   atacan a nadie hasta que les pegas; pegarle a uno enfada a todo su grupo cercano. Sin
   nada a la vista, deambulan cerca de donde aparecieron.
+- **Correa**: ninguno persigue nada a más de 16 casillas de la casa de su grupo, ni
+  provocado. Si lo sacas de ahí, se rinde, se calma y vuelve andando.
 - **Qué tan fuertes**: tu reputación tal como la ve la red (el registro compartido). No hay
   nivel ni XP. Hasta saberla, no aparece ninguno nuevo.
 - **Quién los hostea**: el jugador amenazado. Su vida, su movimiento y su golpe los decide
   él, así que para quien se defiende no hay latencia; el amigo que ayuda manda su golpe
   al dueño (`hit`). Provocados, van a por el jugador que los hostea.
 - Caminan por el camino más corto (búsqueda en anchura de 12 casillas) y rompen lo que
-  construiste (20 de vida). Tu vida es 20, se recupera sola tras 5 s sin golpes, y a cero
-  vuelves al punto de partida.
+  construiste (20 de vida).
+- **Tu vida** (`src/world/life.js`): 20, se recupera sola tras 5 s sin golpes. A cero
+  quedas caído **10 s** con un contador en pantalla (sin moverte ni actuar), reapareces en
+  el punto de partida con la vida llena y **5 s de protección** (una burbuja azul): ni
+  caído ni protegido te elige ningún monstruo ni te cuentan sus golpes.
 - **Cada uno publica y borra solo lo suyo**: un `object_state` o un `object_gone` que no
   viene de su creador se rechaza.
 

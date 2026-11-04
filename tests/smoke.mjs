@@ -9,9 +9,10 @@ import { makeObject, rulesFor } from '../src/objects/standard.js'
 import { LAYERS, layerOf, quadLayers, fullVariant } from '../src/render/terrain.js'
 import { facingFor, walkFrame } from '../src/render/player.js'
 import { actorRow, idleFrame, phaseOf } from '../src/render/actors.js'
-import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, makePack, chooseTarget, sightOf, wanderStep, ROLES, MIN_SPAWN_DIST, farFromAll, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
+import { threatFor, structuresNear, pickTarget, stepToward, spawnSpot, makePack, chooseTarget, sightOf, wanderStep, ROLES, MIN_SPAWN_DIST, farFromAll, LEASH_RADIUS, mustReturn, STEP_MS, ATTACK_MS } from '../src/world/threat.js'
 import { CombatHost } from '../src/combat.js'
 import { PositionSaver, loadPosition, POS_THREAD } from '../src/save.js'
+import { PlayerLife, MAX_HP, RESPAWN_MS, PROTECT_MS } from '../src/world/life.js'
 
 let passed = 0, failed = 0
 function eq (label, a, b) {
@@ -220,6 +221,36 @@ eq('la roca cae', cs.get('rock1'), null)
 let threw = false
 try { new CombatHost({ store: cs, myPubkey: 'me' }) } catch { threw = true }
 truthy('sin onPlayerHit no arranca', threw)
+
+console.log('12b) Muerte, 10 s de espera y protección')
+const life = new PlayerLife()
+eq('un golpe resta', life.hit(5, 0), 'hurt')
+eq('el que deja a cero mata', life.hit(100, 1000), 'died')
+truthy('muerto 10 s', life.isDead(1000 + RESPAWN_MS - 1) && !life.isDead(1000 + RESPAWN_MS))
+eq('contador', [life.secondsToRespawn(1000), life.secondsToRespawn(1000 + 9500)], [10, 1])
+eq('muerto no recibe golpes', life.hit(5, 2000), 'ignored')
+eq('sigue muerto antes de tiempo', life.update(5000), null)
+eq('reaparece a los 10 s', life.update(1000 + RESPAWN_MS), 'respawned')
+eq('con la vida llena', life.hp, MAX_HP)
+truthy('protegido 5 s después', life.isProtected(1000 + RESPAWN_MS + 1) && life.secondsProtected(1000 + RESPAWN_MS) === 5)
+eq('protegido no recibe golpes', life.hit(5, 1000 + RESPAWN_MS + 100), 'ignored')
+eq('acabada la protección, sí', life.hit(5, 1000 + RESPAWN_MS + PROTECT_MS), 'hurt')
+eq('un monstruo provocado no elige a un jugador protegido', chooseTarget({ pos: { x: 1, y: 0 }, payload: { aggro: 1, provoked: true } }, { x: 0, y: 0 }, [], true), null)
+
+console.log('12c) La correa: no se alejan más de la cuenta de su grupo')
+const leashed = { pos: { x: 10, y: 0 }, payload: { aggro: 1, provoked: true, home: { x: 10, y: 0 } } }
+eq('dentro de la correa te persigue', chooseTarget(leashed, { x: 10 - LEASH_RADIUS, y: 0 }, []).kind, 'player')
+eq('fuera de la correa se rinde, aunque esté provocado', chooseTarget(leashed, { x: 10 - LEASH_RADIUS - 1, y: 0 }, []), null)
+truthy('lejos de casa y sin nada que hacer, vuelve', mustReturn({ pos: { x: 0, y: 0 }, payload: { home: { x: 10, y: 0 } } }))
+// Con el host: lo saco de la correa y vuelve a casa, ya calmado.
+const ls = new LocalStore({ myPeerId: 'me' })
+const lh = new CombatHost({ store: ls, myPubkey: 'me', onPlayerHit: () => {}, rand: rnd })
+ls.upsert({ id: 'w1', type: 'enemy', creator: 'me', ts: 1, pos: { x: 4, y: 0 }, payload: { name: 'slime', hp: 10, max_hp: 10, dmg: 1, aggro: 1, provoked: true, home: { x: 10, y: 0 } } })
+let lt = 1
+for (let i = 0; i < 20; i++) { lt += STEP_MS; lh.tick(lt, { player: { x: -14, y: 0 }, rep: null, isPassable: () => true }) }
+const back = ls.get('w1')
+truthy('vuelve a su casa', Math.max(Math.abs(back.pos.x - 10), Math.abs(back.pos.y)) <= 3)
+eq('y se calma', back.payload.provoked, false)
 
 console.log('13) Guardar la posición no inunda la bóveda')
 const ops = []

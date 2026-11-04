@@ -22,6 +22,8 @@ export const PROVOKE_RADIUS = 6         // al pegarle a uno, se enfadan los de s
 export const WANDER_MS = 2500           // un monstruo tranquilo se mueve cada tanto
 export const HOME_RADIUS = 3            // …sin alejarse de donde apareció
 export const MIN_SPAWN_DIST = 8         // ningún monstruo aparece más cerca que esto del jugador
+export const LEASH_RADIUS = 16          // lo más que se aleja de la casa de su grupo; más allá, se rinde y vuelve
+                                        // (más que la distancia a la que aparecen: si no, nunca te alcanzarían)
 
 const STRUCTURE_TYPES = new Set(['prop', 'npc'])
 
@@ -106,15 +108,35 @@ export function farFromAll (p, players) {
 export const sightOf = (aggro) => Math.round(Math.max(0, aggro || 0) * AGGRO_RANGE)
 
 /**
- * A quién va. Provocado: a por el jugador, esté donde esté. Si no, lo más cercano que
- * VEA (jugador o estructura dentro de su vista). Null: nada a la vista, se queda tranquilo.
+ * A quién va. Provocado: a por el jugador, esté donde esté su vista. Si no, lo más cercano
+ * que VEA (jugador o estructura dentro de su vista). Null: nada que hacer, está tranquilo.
+ *
+ * Dos límites, y valen también provocado:
+ *   - `playerSafe`: el jugador está caído o recién reaparecido: no se le elige.
+ *   - la CORREA: nada a más de LEASH_RADIUS de la casa de su grupo. Si lo sacas de ahí,
+ *     se rinde y vuelve (`mustReturn`).
  */
-export function chooseTarget (m, player, structures) {
-  if (m.payload?.provoked) return { kind: 'player', pos: player, d: chebyshev(m.pos, player) }
+export function chooseTarget (m, player, structures, playerSafe = false) {
+  const home = m.payload?.home
+  const inLeash = (p) => !home || chebyshev(p, home) <= LEASH_RADIUS
+  const playerOk = !playerSafe && inLeash(player)
+  if (m.payload?.provoked && playerOk) return { kind: 'player', pos: player, d: chebyshev(m.pos, player) }
   const sight = sightOf(m.payload?.aggro)
   if (sight === 0) return null
-  const t = pickTarget(m.pos, player, structures)
-  return t.d <= sight ? t : null
+  let best = null
+  if (playerOk) best = { kind: 'player', pos: player, d: chebyshev(m.pos, player) }
+  for (const st of structures) {
+    if (!inLeash(st.pos)) continue
+    const d = chebyshev(m.pos, st.pos)
+    if (!best || d < best.d) best = { kind: 'structure', obj: st, pos: st.pos, d }
+  }
+  return best && best.d <= sight ? best : null
+}
+
+/** Fuera de su casa más de HOME_RADIUS y sin nada que hacer: tiene que volver. */
+export function mustReturn (m) {
+  const home = m.payload?.home
+  return !!home && chebyshev(m.pos, home) > HOME_RADIUS
 }
 
 /** Un paso al azar que no lo aleje más de HOME_RADIUS de su casa. Null si no toca moverse. */

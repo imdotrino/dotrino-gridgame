@@ -10,6 +10,7 @@ import { initIdentity, getMyPubkey, getIdentity, getReputation, repOf, repOfSync
 import { makeObject } from './objects/standard.js'
 import { openStore, loadPosition, PositionSaver } from './save.js'
 import { passableAt } from './world/collision.js'
+import { PlayerLife, MAX_HP } from './world/life.js'
 import TilePicker from './render/TilePicker.vue'
 import { createVaultProfileProvider } from '@dotrino/profile'
 import '@dotrino/profile'
@@ -109,36 +110,32 @@ let link = null
 let combat = null
 let myPk = null
 
-// Vida del jugador. Los monstruos que hosteo me pegan (CombatHost.onPlayerHit); a
-// cero vuelvo al punto de aparición con la vida llena. Sin golpes durante un rato,
-// se recupera sola.
-const MAX_HP = 20
-const REGEN_AFTER_MS = 5000
-const REGEN_EVERY_MS = 2000
-let hp = MAX_HP
-let lastHurtAt = 0
-let lastRegenAt = 0
+// Vida del jugador (world/life.js): a cero, 10 s quieto con un contador, y reaparece en
+// el punto de partida con 5 s de protección (los monstruos no le hacen caso).
+const life = new PlayerLife()
 let spawnPoint = { x: 0, y: 0 }
-const downed = ref(false)
-let downedTimer = null
+const respawnIn = ref(0)   // segundos para reaparecer (contador en pantalla)
+const protectedFor = ref(0) // segundos de protección que quedan
 
 function onPlayerHit (dmg) {
   const now = performance.now()
-  hp = Math.max(0, hp - dmg)
-  lastHurtAt = now
+  const r = life.hit(dmg, now)
+  if (r === 'ignored') return
   view.hurtAt = now
-  if (hp === 0) die()
-  view.playerHp = { hp, max: MAX_HP }
+  view.playerHp = { hp: life.hp, max: MAX_HP }
 }
 
-function die () {
-  hp = MAX_HP
-  view.camera.x = spawnPoint.x
-  view.camera.y = spawnPoint.y
-  saver?.update(spawnPoint.x, spawnPoint.y)
-  downed.value = true
-  clearTimeout(downedTimer)
-  downedTimer = setTimeout(() => { downed.value = false }, 4000)
+/** Cada frame: reloj de la vida, reaparición y lo que enseña la pantalla. */
+function updateLife (now) {
+  if (life.update(now) === 'respawned') {
+    view.camera.x = spawnPoint.x
+    view.camera.y = spawnPoint.y
+    saver?.update(spawnPoint.x, spawnPoint.y)
+  }
+  view.playerHp = { hp: life.hp, max: MAX_HP }
+  view.lifeState = life.isDead(now) ? 'dead' : (life.isProtected(now) ? 'protected' : 'alive')
+  respawnIn.value = life.secondsToRespawn(now)
+  protectedFor.value = life.secondsProtected(now)
 }
 
 // Dónde estoy, a los demás: hasta 5 veces por segundo mientras me muevo, y cada 3 s
@@ -155,12 +152,6 @@ function sendPosition (now) {
   link.broadcastPosition(p.x, p.y, p.facing, p.walking)
 }
 
-function regen (now) {
-  if (hp >= MAX_HP || now - lastHurtAt < REGEN_AFTER_MS || now - lastRegenAt < REGEN_EVERY_MS) return
-  lastRegenAt = now
-  hp += 1
-  view.playerHp = { hp, max: MAX_HP }
-}
 
 /** Primera casilla transitable en espiral desde (0, 0): la semilla puede poner agua ahí. */
 function findSpawnPoint () {
@@ -180,6 +171,8 @@ let moveRaf = null
 
 function onKeyDown (e) {
   keys.add(e.key)
+  // Muerto no hace nada hasta reaparecer.
+  if (life.isDead(performance.now()) && e.key !== 'Escape') return
   // Acciones rápidas
   if (e.key === 'q') placeInFront('rock')
   if (e.key === 'm') placeInFront('merchant')
@@ -210,12 +203,14 @@ function tickMove () {
   if (keys.has('ArrowDown') || keys.has('s')) dy += speed
   if (keys.has('ArrowLeft') || keys.has('a')) dx -= speed
   if (keys.has('ArrowRight') || keys.has('d')) dx += speed
+  const now = performance.now()
+  // Muerto no se mueve: espera el contador.
+  if (life.isDead(now)) { dx = 0; dy = 0 }
   view.setMotion(dx, dy)
   if (dx || dy) {
     tryStep(dx, dy)
     saver?.update(view.camera.x, view.camera.y)
   }
-  const now = performance.now()
   // Hasta saber qué dice la red de mí no aparecen monstruos nuevos: saldrían con una
   // fuerza inventada. Los que ya hay siguen actuando.
   const standing = myStandingSync()
@@ -225,10 +220,11 @@ function tickMove () {
     player: myTilePos(),
     rep: standing,
     isPassable: (x, y) => passableAt(x, y, view.ground, store).passable,
-    others: others.map((o) => ({ x: Math.round(o.x), y: Math.round(o.y) }))
+    others: others.map((o) => ({ x: Math.round(o.x), y: Math.round(o.y) })),
+    playerSafe: life.isSafe(now)
   })
   sendPosition(now)
-  regen(now)
+  updateLife(now)
   link?.setViewport({
     x0: Math.floor(view.camera.x) - 12,
     y0: Math.floor(view.camera.y) - 9,
@@ -322,7 +318,7 @@ onMounted(async () => {
   const start = saved && passableAt(saved.x, saved.y, view.ground, store).passable ? saved : spawnPoint
   view.camera.x = start.x
   view.camera.y = start.y
-  view.playerHp = { hp, max: MAX_HP }
+  view.playerHp = { hp: life.hp, max: MAX_HP }
   // Los monstruos existen también sin red: los hosteo yo. La red se le cuelga después.
   combat = new CombatHost({ store, myPubkey: myPk, onPlayerHit })
   view.resize()
@@ -352,7 +348,7 @@ onMounted(async () => {
       // Asidero para la prueba de punta a punta (`tests/sealed-net.e2e.mjs`): comprobar
       // que por el cable no viaja nada legible exige preguntarle a la red por su token y
       // provocar los fallos a propósito. No expone nada que no esté ya en la página.
-      window.gridgame = { link, store, myPk }
+      window.gridgame = { link, store, myPk, hitMe: onPlayerHit }
       statusKey.value = 'online'
     } catch (e) {
       console.warn('[gridgame] network start failed', e)
@@ -419,9 +415,14 @@ onBeforeUnmount(() => {
     <b>F</b> {{ t.hint.attack }} · <b>T</b> {{ t.hint.tiles }}
     <div class="status">{{ status }}</div>
     <div v-if="unreachableText" class="status warn">{{ unreachableText }}</div>
-    <div v-if="downed" class="status warn" data-testid="downed">{{ t.status.downed }}</div>
     <div v-if="saveProblem" class="status warn" data-testid="save-problem">{{ t.status.saveFailed }}</div>
   </div>
+  <div v-if="respawnIn > 0" class="respawn" data-testid="respawn">
+    <div class="respawn-title">{{ t.life.defeated }}</div>
+    <div class="respawn-count">{{ respawnIn }}</div>
+    <div class="respawn-sub">{{ t.life.respawnIn }}</div>
+  </div>
+  <div v-else-if="protectedFor > 0" class="shield" data-testid="protected">🛡 {{ t.life.protected(protectedFor) }}</div>
   <TilePicker v-if="showPicker" :lang="lang" @close="showPicker = false" />
 
   <div v-if="peers.length" class="roster">
@@ -445,6 +446,22 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .world { position: fixed; inset: 0; width: 100vw; height: 100vh; }
+/* Contador de reaparición: en el centro, sobre el personaje caído. */
+.respawn {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -130%);
+  text-align: center; color: #fff; pointer-events: none;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+  font-family: var(--dt-font, inherit);
+}
+.respawn-title { font-size: 18px; font-weight: 700; }
+.respawn-count { font-size: 56px; font-weight: 800; line-height: 1.1; }
+.respawn-sub { font-size: 14px; opacity: 0.9; }
+.shield {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -260%);
+  padding: 4px 10px; border-radius: 999px; pointer-events: none;
+  background: rgba(0, 101, 140, 0.85); color: #fff; font-size: 13px; font-weight: 600;
+}
+
 /* El topbar se superpone al canvas (el mundo sigue ocupando toda la pantalla),
    con el mismo cristal oscuro que ya tenían las piezas flotantes y el carmesí
    de la marca como acento. El componente no es sticky por sí solo (§5). */

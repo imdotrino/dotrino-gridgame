@@ -40,6 +40,7 @@ export class WorldView {
     this.hurtAt = -Infinity
     // Los demás jugadores: [{ x, y, facing, walking }]. Los fija la app con lo que llega por red.
     this.others = []
+    this.lifeState = 'alive' // 'alive' | 'dead' | 'protected'
     this._shown = new Map() // pk → { x, y } dibujado: se acerca suave a lo último recibido
     this._raf = null
   }
@@ -194,8 +195,22 @@ export class WorldView {
       // Al recibir un golpe, parpadea un momento.
       const hurt = now - this.hurtAt < 300
       if (hurt && Math.floor(now / 60) % 2) ctx.globalAlpha = 0.35
+      // Caído: gris y medio transparente mientras corre el contador.
+      if (this.lifeState === 'dead') { ctx.globalAlpha = 0.45; ctx.filter = 'grayscale(1)' }
       this.player.draw(ctx, this.facing, col, Math.floor(pcx - tileSize / 2), Math.floor(pcy - tileSize / 2), tileSize)
       ctx.globalAlpha = 1
+      ctx.filter = 'none'
+      // Protegido: una burbuja azul que late.
+      if (this.lifeState === 'protected') {
+        const pulse = 0.5 + 0.5 * Math.sin(now / 150)
+        ctx.strokeStyle = `rgba(80, 180, 255, ${0.5 + 0.4 * pulse})`
+        ctx.fillStyle = `rgba(80, 180, 255, ${0.12 + 0.08 * pulse})`
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(pcx, pcy, tileSize * 0.7, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.stroke()
+      }
     } else {
       // Mientras carga (o si no cargó: PlayerSprite lo dice en consola).
       ctx.fillStyle = '#00658c'

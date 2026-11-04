@@ -13,7 +13,7 @@
 import { makeObject } from './objects/standard.js'
 import {
   THREAT_RADIUS, DESPAWN_RADIUS, STEP_MS, ATTACK_MS, STRUCTURE_HP, PROVOKE_RADIUS, WANDER_MS,
-  chebyshev, structuresNear, threatFor, spawnSpot, makePack, farFromAll, chooseTarget, stepToward, wanderStep
+  chebyshev, structuresNear, threatFor, spawnSpot, makePack, farFromAll, chooseTarget, mustReturn, stepToward, wanderStep
 } from './world/threat.js'
 
 export class CombatHost {
@@ -62,7 +62,7 @@ export class CombatHost {
    * @param {(x:number,y:number) => boolean} isPassable
    * @param {{x:number,y:number}[]} others posiciones de los demás jugadores conocidos
    */
-  tick (now, { player, rep, isPassable, others = [] }) {
+  tick (now, { player, rep, isPassable, others = [], playerSafe = false }) {
     const monsters = this.myMonsters()
     const structures = structuresNear(this.store.inRect(player.x - THREAT_RADIUS, player.y - THREAT_RADIUS, player.x + THREAT_RADIUS, player.y + THREAT_RADIUS), this.myPubkey, player)
     // rep null = todavía no se sabe qué dice la red de este jugador: no se inventa una
@@ -78,7 +78,7 @@ export class CombatHost {
       }
     }
 
-    for (const m of monsters) this._act(m, now, player, structures, isPassable)
+    for (const m of monsters) this._act(m, now, player, structures, isPassable, playerSafe)
   }
 
   /** Un grupo entero: comparten `pack` y una casa (`home`) de la que no se alejan tranquilos. */
@@ -102,18 +102,29 @@ export class CombatHost {
   // Los objetos del almacén NO se mutan: está indexado por casilla, y cambiar `pos` en
   // el sitio dejaría el monstruo apuntado en la casilla vieja. Cada cambio es un objeto
   // nuevo con `ts` nuevo.
-  _act (m, now, player, structures, isPassable) {
+  _act (m, now, player, structures, isPassable, playerSafe) {
     if (chebyshev(m.pos, player) > DESPAWN_RADIUS) {
       this.store.remove(m.id)
       this.peerLink?.broadcastObjectGone(m.id)
       return
     }
-    const target = chooseTarget(m, player, structures)
+    const target = chooseTarget(m, player, structures, playerSafe)
     if (!target) {
-      // Nada a la vista y nadie le ha pegado: se queda cerca de su casa, moviéndose a ratos.
+      // Se le acabó la persecución (lejos de casa, o el jugador caído/protegido): se calma.
+      const payload = { ...m.payload, provoked: false }
+      if (mustReturn(m)) {
+        // Fuera de su casa: vuelve andando, a paso normal.
+        if (now - (m.payload.lastStepAt || 0) < STEP_MS) return
+        const next = stepToward(m.pos, m.payload.home, isPassable)
+        const updated = { ...m, pos: next || m.pos, ts: Date.now(), payload: { ...payload, lastStepAt: now } }
+        if (next) this._publish(updated)
+        else this.store.upsert(updated, { creatorOnline: true })
+        return
+      }
+      // En casa: se mueve a ratos sin alejarse.
       if (now - (m.payload.lastStepAt || 0) < WANDER_MS) return
       const next = wanderStep(m.pos, m.payload.home, this.rand, isPassable)
-      const updated = { ...m, pos: next || m.pos, ts: Date.now(), payload: { ...m.payload, lastStepAt: now } }
+      const updated = { ...m, pos: next || m.pos, ts: Date.now(), payload: { ...payload, lastStepAt: now } }
       if (next) this._publish(updated)
       else this.store.upsert(updated, { creatorOnline: true })
       return
