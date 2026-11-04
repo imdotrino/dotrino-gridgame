@@ -7,6 +7,7 @@ import { runRules } from '../src/dsl/interpreter.js'
 import { powerFor, capOnCraft } from '../src/world/power.js'
 import { makeObject, rulesFor } from '../src/objects/standard.js'
 import { LAYERS, layerOf, quadLayers, fullVariant } from '../src/render/terrain.js'
+import { facingFor, walkFrame } from '../src/render/player.js'
 
 let passed = 0, failed = 0
 function eq (label, a, b) {
@@ -110,6 +111,14 @@ let unknown = 0
 for (let x = -200; x < 200; x += 7) for (let y = -200; y < 200; y += 7) if (!LAYERS.includes(gg.tileAt(x, y).type)) unknown++
 eq('el generador solo produce capas conocidas', unknown, 0)
 eq('variante determinista', fullVariant(12, -7), fullVariant(12, -7))
+
+console.log('10) Sprite del jugador')
+eq('abajo', facingFor(0, 1), 0)
+eq('izquierda', facingFor(-1, 0), 1)
+eq('derecha', facingFor(1, 0.2), 2)
+eq('arriba', facingFor(0.1, -1), 3)
+eq('quieto conserva la cara', facingFor(0, 0, 2), 2)
+eq('ciclo de pasos', [0, 140, 280, 420].map(walkFrame), [0, 1, 0, 2])
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

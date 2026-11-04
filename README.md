@@ -60,6 +60,12 @@ acepta nada dirigido en claro.
   genera la plantilla con las siluetas exactas que espera el motor, y
   `scripts/terrain/draw.py` dibuja el arte y comprueba que no se aparta de ellas.
 
+## El personaje
+
+`public/player.png` (48×64, frames de 16 px): fila = hacia dónde mira (abajo, izquierda,
+derecha, arriba), columna = de pie, paso A, paso B. `src/render/player.js` elige la cara
+según el movimiento y alterna los pasos al andar. `scripts/player/draw.py` lo regenera.
+
 ## Pruebas
 
 ```bash

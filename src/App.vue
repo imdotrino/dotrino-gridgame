@@ -134,6 +134,7 @@ function tickMove () {
   if (keys.has('ArrowDown') || keys.has('s')) dy += speed
   if (keys.has('ArrowLeft') || keys.has('a')) dx -= speed
   if (keys.has('ArrowRight') || keys.has('d')) dx += speed
+  view.setMotion(dx, dy)
   if (dx || dy) tryStep(dx, dy)
   link?.setViewport({
     x0: Math.floor(view.camera.x) - 12,

@@ -2,6 +2,7 @@ import { ProceduralGround } from '../world/ProceduralGround.js'
 import { resolveTile } from '../world/resolve.js'
 import { getSheet } from './tiles.js'
 import { TerrainAtlas, layerOf, quadLayers, fullVariant, FULL } from './terrain.js'
+import { PlayerSprite, facingFor, walkFrame } from './player.js'
 
 // Render 2D. Dibuja:
 //   1) ground procedural como fondo.
@@ -25,7 +26,17 @@ export class WorldView {
     this.camera = { x: 0, y: 0 } // centro en coords de tile
     this.sheet = getSheet()
     this.terrain = new TerrainAtlas()
+    this.player = new PlayerSprite()
+    // Hacia dónde mira y si camina: lo fija la app en cada paso (setMotion).
+    this.facing = 0 // fila del sprite: 0 abajo, 1 izquierda, 2 derecha, 3 arriba
+    this.walking = false
     this._raf = null
+  }
+
+  /** El movimiento de este frame: decide la cara del sprite y si anda. */
+  setMotion (dx, dy) {
+    this.walking = !!(dx || dy)
+    if (this.walking) this.facing = facingFor(dx, dy, this.facing)
   }
 
   start () {
@@ -136,9 +147,21 @@ export class WorldView {
       }
     }
 
-    // Personaje propio (placeholder) en el centro.
-    ctx.fillStyle = '#ff3355'
-    ctx.fillRect(w / 2 - tileSize / 3, h / 2 - tileSize / 3, tileSize * 2 / 3, tileSize * 2 / 3)
+    // Personaje propio, en el centro: sombra bajo los pies y el sprite encima.
+    const pcx = w / 2
+    const pcy = h / 2
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
+    ctx.beginPath()
+    ctx.ellipse(pcx, pcy + tileSize * 0.42, tileSize * 0.3, tileSize * 0.11, 0, 0, Math.PI * 2)
+    ctx.fill()
+    if (this.player.ready) {
+      const col = this.walking ? walkFrame(performance.now()) : 0
+      this.player.draw(ctx, this.facing, col, Math.floor(pcx - tileSize / 2), Math.floor(pcy - tileSize / 2), tileSize)
+    } else {
+      // Mientras carga (o si no cargó: PlayerSprite lo dice en consola).
+      ctx.fillStyle = '#00658c'
+      ctx.fillRect(pcx - tileSize / 3, pcy - tileSize / 3, tileSize * 2 / 3, tileSize * 2 / 3)
+    }
 
     // HUD (etiquetas en el idioma activo, §9).
     const L = this.hudLabels() || HUD_FALLBACK
