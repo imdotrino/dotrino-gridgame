@@ -8,6 +8,9 @@
 
 export const LANG_KEY = 'dotrino.lang'
 
+/** @typedef {'es' | 'en'} Lang */
+
+/** @returns {Lang} */
 export function detectLang () {
   try {
     const saved = localStorage.getItem(LANG_KEY)
@@ -33,7 +36,7 @@ export const messages = {
     // Cuando a alguien no se le puede mandar nada porque no hay con qué protegerlo.
     // Se dice en vez de callarlo: si no, ese jugador parece estar y no recibe nada.
     unreachable: {
-      head: (n) => (n === 1 ? 'Un jugador no recibe lo tuyo:' : `${n} jugadores no reciben lo tuyo:`),
+      head: (/** @type {number} */ n) => (n === 1 ? 'Un jugador no recibe lo tuyo:' : `${n} jugadores no reciben lo tuyo:`),
       'no-encpub': 'su app todavía no publica con qué protegerlo.',
       'encpub-unverified': 'lo que llegó de él no cuadra con su perfil.',
       'no-encpub-support': 'el servidor por el que pasáis es antiguo.',
@@ -45,7 +48,7 @@ export const messages = {
     life: {
       defeated: 'Te derrotaron',
       respawnIn: 'reapareces en el punto de partida',
-      protected: (n) => `protegido ${n} s`,
+      protected: (/** @type {number} */ n) => `protegido ${n} s`,
     },
     hint: {
       move: 'moverte',
@@ -86,7 +89,7 @@ export const messages = {
       saveFailed: 'your position cannot be saved: reloading takes you back to the start',
     },
     unreachable: {
-      head: (n) => (n === 1 ? 'One player is not getting what you do:' : `${n} players are not getting what you do:`),
+      head: (/** @type {number} */ n) => (n === 1 ? 'One player is not getting what you do:' : `${n} players are not getting what you do:`),
       'no-encpub': 'their app does not publish what it takes to protect it yet.',
       'encpub-unverified': 'what came from them does not match their profile.',
       'no-encpub-support': 'the server you go through is an old one.',
@@ -96,7 +99,7 @@ export const messages = {
     life: {
       defeated: 'You were defeated',
       respawnIn: 'you will reappear at the starting point',
-      protected: (n) => `protected ${n} s`,
+      protected: (/** @type {number} */ n) => `protected ${n} s`,
     },
     hint: {
       move: 'to move',

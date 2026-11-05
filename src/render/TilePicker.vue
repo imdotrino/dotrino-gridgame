@@ -4,20 +4,22 @@ import { messages } from '../i18n.js'
 
 const emit = defineEmits(['close'])
 // El idioma baja desde App.vue, que es quien escucha al <dotrino-topbar> (§9).
-const props = defineProps({ lang: { type: String, default: 'es' } })
+const props = defineProps({ lang: { type: /** @type {import('vue').PropType<import('../i18n.js').Lang>} */ (String), default: 'es' } })
 const t = computed(() => messages[props.lang].picker)
-const canvasRef = ref(null)
+const canvasRef = ref(/** @type {HTMLCanvasElement | null} */ (null))
 const info = ref({ col: 0, row: 0 })
 const ZOOM = 2 // 16 → 32px por tile en pantalla
 const STRIDE = 17
 const TILE = 16
 
+/** @type {HTMLImageElement | null} */
 let img = null
 
 function draw () {
   const c = canvasRef.value
   if (!c || !img?.complete) return
   const ctx = c.getContext('2d')
+  if (!ctx) return
   ctx.imageSmoothingEnabled = false
   c.width = img.naturalWidth * ZOOM
   c.height = img.naturalHeight * ZOOM
@@ -33,8 +35,10 @@ function draw () {
   }
 }
 
+/** @param {MouseEvent} e */
 function onMove (e) {
   const c = canvasRef.value
+  if (!c) return
   const rect = c.getBoundingClientRect()
   const x = (e.clientX - rect.left) / ZOOM
   const y = (e.clientY - rect.top) / ZOOM

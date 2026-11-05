@@ -17,6 +17,25 @@ import '@dotrino/profile'
 import '@dotrino/topbar' // barra superior estándar (§5): marca + volver + perfil + support
 import { useBackLayer } from '@dotrino/nav/vue'
 
+/**
+ * @typedef {import('./types').NetEvent} NetEvent
+ * @typedef {import('./types').Pos} Pos
+ * @typedef {import('./types').PlacedObject} PlacedObject
+ */
+
+/**
+ * Lo que monta onMounted. Lo que lo usa solo corre después (el bucle, las teclas, la red);
+ * si alguna vez no fuera así, es un fallo y se dice con su nombre.
+ * @template T
+ * @param {T | null} v
+ * @param {string} name
+ * @returns {T}
+ */
+function mounted (v, name) {
+  if (v == null) throw new Error(`gridgame: ${name} used before mount`)
+  return v
+}
+
 const showPicker = ref(false)
 
 // --- Idioma (§9) ---
@@ -25,6 +44,7 @@ const showPicker = ref(false)
 // desde ahí solo escuchamos: la app no tiene toggle ni clave propios.
 const lang = ref(detectLang())
 const t = computed(() => messages[lang.value])
+/** @param {HTMLElementEventMap['dotrino-lang']} e */
 function onLang (e) {
   const l = e.detail?.lang
   if (l === 'es' || l === 'en') lang.value = l
@@ -34,12 +54,18 @@ function onLang (e) {
 watchEffect(() => { document.documentElement.lang = lang.value })
 
 // --- Roster de jugadores conectados + perfil/reputación compartido ---
-const peers = ref([])
-const profilePk = ref(null)
+const peers = ref(/** @type {string[]} */ ([]))
+const profilePk = ref(/** @type {string | null} */ (null))
+/** @type {ReturnType<typeof setInterval> | null} */
 let rosterTimer = null
+/** @type {import('@dotrino/profile').ProfileProvider | null} */
 let _profileProvider = null
 // La pubkey llega como JWK serializado ({"crv":…,"x":…}): se acorta su `x`, que es lo
 // que distingue a una llave de otra; recortar el JSON entero enseñaba '{"crv":"…'.
+/**
+ * @param {string | null | undefined} pk
+ * @returns {string}
+ */
 function shortPk (pk) {
   let k = pk || ''
   if (k.startsWith('{')) { try { k = JSON.parse(k).x || k } catch { /* no es JWK: se acorta tal cual */ } }
@@ -51,6 +77,7 @@ async function ensureProfileProvider () {
   if (reputation) _profileProvider = createVaultProfileProvider({ identity: getIdentity(), reputation })
   return _profileProvider
 }
+/** @param {string} pk */
 function openPeer (pk) { if (pk && pk !== myPk) profilePk.value = pk }
 
 // Volver unificado (@dotrino/nav): el botón físico / chevron
@@ -58,17 +85,24 @@ function openPeer (pk) { if (pk && pk !== myPk) profilePk.value = pk }
 // (El modal "Mi perfil" lo abre y lo enlaza al "volver" el propio <dotrino-topbar>.)
 useBackLayer(showPicker)
 useBackLayer(profilePk, { onClose: () => { profilePk.value = null } })
-function bindProfile (el) { if (!el) return; ensureProfileProvider().then((p) => { if (p) el.provider = p }) }
+/** @param {Element | import('vue').ComponentPublicInstance | null} el el <dotrino-profile> del template */
+function bindProfile (el) {
+  if (!el) return
+  const card = /** @type {import('@dotrino/profile').DotrinoProfile} */ (el)
+  ensureProfileProvider().then((p) => { if (p) card.provider = p })
+}
 
 // --- Topbar estándar del ecosistema (§5/§6.1) ---
 // El componente es DUEÑO del modal "Mi perfil": le pasamos los pilares que la
 // app ya tiene (identity + reputation) y él deriva pubkey, nombre y avatar del
 // perfil activo. Sin vault (modo standalone) quedan en null y el botón no abre
 // nada, igual que antes con el FAB.
-const topbarRef = ref(null)
-const identityInst = ref(null)
-const reputationInst = ref(null)
-const userStore = shallowRef(null) // shallow: un Proxy de Vue rompe el postMessage al iframe del almacén
+const topbarRef = ref(/** @type {import('@dotrino/topbar').DotrinoTopbar | null} */ (null))
+// shallowRef: con `ref` Vue envolvía la identidad en su Proxy reactivo y el topbar
+// recibía el Proxy, que el puente con el iframe no sabe clonar por postMessage.
+const identityInst = shallowRef(/** @type {import('@dotrino/identity').Identity | null} */ (null))
+const reputationInst = shallowRef(/** @type {import('@dotrino/reputation').VaultReputation | null} */ (null))
+const userStore = shallowRef(/** @type {import('@dotrino/store').Store | null} */ (null)) // shallow: un Proxy de Vue rompe el postMessage al iframe del almacén
 watchEffect(() => {
   const tb = topbarRef.value
   if (!tb) return
@@ -80,23 +114,28 @@ watchEffect(() => {
 // Si la posición no se puede guardar, se dice: volver al origen sin explicación
 // parece un fallo del juego.
 const saveProblem = ref(false)
+/** @type {PositionSaver | null} */
 let saver = null
 
-const canvasRef = ref(null)
-const stageRef = ref(null)
+const canvasRef = ref(/** @type {HTMLCanvasElement | null} */ (null))
+const stageRef = ref(/** @type {HTMLElement | null} */ (null))
 // El alto real de la barra (una fila en escritorio, dos en móvil) para que el mundo
 // empiece justo debajo; y el canvas se redimensiona cuando cambia su caja.
+/** @type {ResizeObserver | null} */
 let layoutObserver = null
 // Jugadores a los que NO se les puede sellar y por qué. Se enseña: quedarse callado
 // haría que el otro pareciera estar y no recibiera nada (§14: una incompatibilidad que
 // no se anuncia se vive como silencio).
-const unreachable = ref([])
+const unreachable = ref(/** @type {{ pk: string, code: string }[]} */ ([]))
 const unreachableText = computed(() => {
   if (!unreachable.value.length) return ''
   const code = unreachable.value[0].code
-  const motivo = t.value.unreachable[code] || t.value.unreachable.unknown
+  // Los motivos son las claves de texto de `unreachable` (todas menos `head`).
+  const reason = /** @type {Record<string, unknown>} */ (t.value.unreachable)[code]
+  const motivo = (typeof reason === 'string' && reason) || t.value.unreachable.unknown
   return t.value.unreachable.head(unreachable.value.length) + ' ' + motivo
 })
+/** @param {NetEvent} e */
 function onNetEvent (e) {
   if (e.kind === 'peer-unreachable') {
     unreachable.value = [...unreachable.value.filter((u) => u.pk !== e.pk), { pk: e.pk, code: e.code }]
@@ -109,13 +148,27 @@ function onNetEvent (e) {
 }
 // El estado se guarda como CLAVE, no como texto ya traducido: así cambiar de
 // idioma retraduce también la línea de estado.
-const statusKey = ref('booting')
+const statusKey = ref(/** @type {keyof typeof messages.es.status} */ ('booting'))
 const status = computed(() => t.value.status[statusKey.value])
+/** @type {WorldView | null} */
 let view = null
+/** @type {LocalStore | null} */
 let store = null
+/** @type {PeerLink | null} */
 let link = null
+/** @type {CombatHost | null} */
 let combat = null
+/** @type {string | null} */
 let myPk = null
+
+// `view` y `store` se asignan una vez en onMounted; las funciones las leen por aquí para
+// que el tipo no dependa del orden en que TypeScript ve las asignaciones.
+/** @returns {WorldView | null} */
+function globalView () { return view }
+/** @returns {LocalStore | null} */
+function globalStore () { return store }
+/** @param {WorldView} v */
+function setView (v) { view = v }
 
 // Vida del jugador (world/life.js): a cero, 10 s quieto con un contador, y reaparece en
 // el punto de partida con 5 s de protección (los monstruos no le hacen caso).
@@ -124,16 +177,20 @@ let spawnPoint = { x: 0, y: 0 }
 const respawnIn = ref(0)   // segundos para reaparecer (contador en pantalla)
 const protectedFor = ref(0) // segundos de protección que quedan
 
+/** @param {number} dmg */
 function onPlayerHit (dmg) {
   const now = performance.now()
   const r = life.hit(dmg, now)
   if (r === 'ignored') return
+  const view = mounted(globalView(), 'view')
   view.hurtAt = now
   view.playerHp = { hp: life.hp, max: MAX_HP }
 }
 
 /** Cada frame: reloj de la vida, reaparición y lo que enseña la pantalla. */
+/** @param {number} now */
 function updateLife (now) {
+  const view = mounted(globalView(), 'view')
   if (life.update(now) === 'respawned') {
     view.camera.x = spawnPoint.x
     view.camera.y = spawnPoint.y
@@ -148,9 +205,12 @@ function updateLife (now) {
 // Dónde estoy, a los demás: hasta 5 veces por segundo mientras me muevo, y cada 3 s
 // quieto (para que sepan que sigo ahí y los monstruos no aparezcan encima).
 let lastPosSentAt = 0
+/** @type {{ x: number, y: number, facing: number, walking: boolean, safe: boolean } | null} */
 let lastPosSent = null
+/** @param {number} now */
 function sendPosition (now) {
   if (!link) return
+  const view = mounted(globalView(), 'view')
   const p = { x: Math.round(view.camera.x * 10) / 10, y: Math.round(view.camera.y * 10) / 10, facing: view.facing, walking: view.walking, safe: life.isSafe(now) }
   const changed = !lastPosSent || p.x !== lastPosSent.x || p.y !== lastPosSent.y || p.facing !== lastPosSent.facing || p.walking !== lastPosSent.walking || p.safe !== lastPosSent.safe
   if (now - lastPosSentAt < (changed ? 200 : 3000)) return
@@ -161,7 +221,9 @@ function sendPosition (now) {
 
 
 /** Primera casilla transitable en espiral desde (0, 0): la semilla puede poner agua ahí. */
+/** @returns {Pos} */
 function findSpawnPoint () {
+  const view = mounted(globalView(), 'view')
   for (let r = 0; r < 200; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
@@ -174,8 +236,10 @@ function findSpawnPoint () {
 }
 
 const keys = new Set()
+/** @type {number | null} */
 let moveRaf = null
 
+/** @param {KeyboardEvent} e */
 function onKeyDown (e) {
   keys.add(e.key)
   // Muerto no hace nada hasta reaparecer.
@@ -187,12 +251,18 @@ function onKeyDown (e) {
   if (e.key === 't') showPicker.value = !showPicker.value
   if (e.key === 'Escape') showPicker.value = false
 }
+/** @param {KeyboardEvent} e */
 function onKeyUp (e) { keys.delete(e.key) }
 // Al ocultarse la pestaña (recargar, cerrar, cambiar de app) se escribe lo pendiente.
 function onHide () { if (document.visibilityState === 'hidden') saver?.flush() }
 function onResize () { view?.resize() }
 
+/**
+ * @param {number} dx
+ * @param {number} dy
+ */
 function tryStep (dx, dy) {
+  const view = mounted(globalView(), 'view')
   // Ejes por separado para permitir sliding contra obstáculos.
   const nx = view.camera.x + dx
   if (passableAt(nx, view.camera.y, view.ground, store).passable) view.camera.x = nx
@@ -207,6 +277,7 @@ function tryStep (dx, dy) {
 const WALK_TILES_PER_S = 9
 let lastMoveAt = 0
 function tickMove () {
+  const view = globalView()
   if (!view) return
   const tNow = performance.now()
   // La lógica va al mismo ritmo que el dibujo (30 por segundo): más vueltas no se verían.
@@ -253,23 +324,31 @@ function tickMove () {
   moveRaf = requestAnimationFrame(tickMove)
 }
 
+/** @returns {Pos} */
 function myTilePos () {
+  const view = mounted(globalView(), 'view')
   return { x: Math.round(view.camera.x), y: Math.round(view.camera.y) }
 }
 
 // Delante del personaje, hacia donde mira (fila del sprite: 0 abajo, 1 izquierda,
 // 2 derecha, 3 arriba). Antes la roca caía bajo los pies, y como es sólida te dejaba
 // encerrado: con monstruos persiguiéndote, eso es morir.
+/** @type {[number, number][]} */
 const FACING_DIR = [[0, 1], [-1, 0], [1, 0], [0, -1]]
+/** @returns {Pos} */
 function frontTile () {
+  const view = mounted(globalView(), 'view')
   const p = myTilePos()
   const [dx, dy] = FACING_DIR[view.facing]
   return { x: p.x + dx, y: p.y + dy }
 }
 
 /** Pone algo mío delante; en agua u ocupado por algo sólido, no. */
+/** @param {string} kind */
 function placeInFront (kind) {
   if (!myPk) return
+  const view = mounted(globalView(), 'view')
+  const store = mounted(globalStore(), 'store')
   const pos = frontTile()
   if (!passableAt(pos.x, pos.y, view.ground, store).passable) return
   const obj = makeObject(kind, { creator: myPk, ts: Date.now(), pos })
@@ -282,6 +361,7 @@ function tryAttackNearest () {
   if (!store) return
   const p = myTilePos()
   // Busca un enemigo adyacente.
+  /** @type {PlacedObject | null} */
   let target = null
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
@@ -296,7 +376,7 @@ function tryAttackNearest () {
   const standing = myStandingSync()
   const amount = standing == null ? 1 : Math.max(1, Math.floor(5 * standing + 1))
   if (target.creator === myPk) {
-    combat.applyHit(target.id, amount)
+    mounted(combat, 'combat').applyHit(target.id, amount)
   } else {
     link?.broadcastHit(target.id, target.creator, amount)
   }
@@ -312,7 +392,7 @@ onMounted(async () => {
 
   store = new LocalStore({ myPeerId: myPk })
 
-  view = new WorldView(canvasRef.value, {
+  const view = new WorldView(mounted(canvasRef.value, 'canvas'), {
     tileSize: 32,
     ground: new ProceduralGround(0xC10C3E),
     store,
@@ -321,7 +401,9 @@ onMounted(async () => {
     // cada frame lea las etiquetas del idioma activo.
     hudLabels: () => t.value.hud
   })
+  setView(view)
   // Volver a donde estabas: la posición vive en el almacén del perfil.
+  /** @type {Pos | null} */
   let saved = null
   try {
     const us = await openStore(getIdentity())
@@ -339,14 +421,15 @@ onMounted(async () => {
   view.camera.y = start.y
   view.playerHp = { hp: life.hp, max: MAX_HP }
   // Los monstruos existen también sin red: los hosteo yo. La red se le cuelga después.
-  combat = new CombatHost({ store, myPubkey: myPk, onPlayerHit })
+  const host = new CombatHost({ store, myPubkey: myPk, onPlayerHit })
+  combat = host
   layoutObserver = new ResizeObserver(() => {
     const tb = topbarRef.value
     if (tb) document.documentElement.style.setProperty('--topbar-h', `${tb.getBoundingClientRect().height}px`)
     view?.resize()
   })
   if (topbarRef.value) layoutObserver.observe(topbarRef.value)
-  layoutObserver.observe(stageRef.value)
+  layoutObserver.observe(mounted(stageRef.value, 'stage'))
   view.resize()
   view.start()
   moveRaf = requestAnimationFrame(tickMove)
@@ -367,14 +450,15 @@ onMounted(async () => {
     statusKey.value = 'soloNoVault'
   } else {
     try {
-      link = new PeerLink({ store, identity: vault, repOfSync, url: import.meta.env.VITE_WS_URL || undefined })
-      link.subscribe(onNetEvent)
-      await link.start(myPk, vault)
-      combat.setPeerLink(link)
+      const net = new PeerLink({ store, identity: vault, repOfSync, url: import.meta.env.VITE_WS_URL || undefined })
+      link = net
+      net.subscribe(onNetEvent)
+      await net.start(myPk, vault)
+      host.setPeerLink(net)
       // Asidero para la prueba de punta a punta (`tests/sealed-net.e2e.mjs`): comprobar
       // que por el cable no viaja nada legible exige preguntarle a la red por su token y
       // provocar los fallos a propósito. No expone nada que no esté ya en la página.
-      window.gridgame = { link, store, myPk, hitMe: onPlayerHit }
+      window.gridgame = { link: net, store, myPk, hitMe: onPlayerHit }
       statusKey.value = 'online'
     } catch (e) {
       console.warn('[gridgame] network start failed', e)

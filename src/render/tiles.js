@@ -14,6 +14,7 @@ const STRIDE = 17 // 16px + 1px margen
 // Revisado el 2026-11-04 contra la hoja, tile a tile. Lo que el pack no trae
 // (personajes, enemigos, espada) NO va aquí: sin entrada, WorldView dibuja su
 // forma de color, que se ve; un tile equivocado o vacío confunde o desaparece.
+/** @type {Record<string, [number, number]>} */
 export const TILE_MAP = {
   // Suelo plano (el suelo del mapa lo pinta terrain.js; esto es para los
   // modificadores de suelo que coloca un jugador).
@@ -49,6 +50,7 @@ export const TILE_MAP = {
 }
 
 class TileSheet {
+  /** @param {string} [src] */
   constructor (src = 'tiles.png') {
     this.img = new Image()
     this.ready = false
@@ -56,10 +58,18 @@ class TileSheet {
     this.img.src = src
   }
 
-  /** Dibuja un tile por kind. dx,dy,size en píxeles de destino. */
+  /**
+   * Dibuja un tile por kind. dx,dy,size en píxeles de destino.
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {string | undefined} kind
+   * @param {number} dx
+   * @param {number} dy
+   * @param {number} size
+   * @returns {boolean} si lo dibujó
+   */
   draw (ctx, kind, dx, dy, size) {
     if (!this.ready) return false
-    const m = TILE_MAP[kind]
+    const m = kind === undefined ? undefined : TILE_MAP[kind]
     if (!m) return false
     const sx = m[0] * STRIDE
     const sy = m[1] * STRIDE
@@ -67,7 +77,16 @@ class TileSheet {
     return true
   }
 
-  /** Dibuja por col/row explícitos. Útil para el picker. */
+  /**
+   * Dibuja por col/row explícitos. Útil para el picker.
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} col
+   * @param {number} row
+   * @param {number} dx
+   * @param {number} dy
+   * @param {number} size
+   * @returns {boolean}
+   */
   drawCell (ctx, col, row, dx, dy, size) {
     if (!this.ready) return false
     ctx.drawImage(this.img, col * STRIDE, row * STRIDE, TILE, TILE, dx, dy, size, size)
@@ -76,7 +95,9 @@ class TileSheet {
 }
 
 // Singleton.
+/** @type {TileSheet | null} */
 let _sheet = null
+/** @returns {TileSheet} */
 export function getSheet () {
   if (!_sheet) _sheet = new TileSheet()
   return _sheet

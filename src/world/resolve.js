@@ -14,6 +14,14 @@
 // `repOf(peerId)` es inyectado: lo provee el host con datos de
 // `dotrino-identity` (agregación local de endorsements).
 
+/**
+ * @typedef {import('../types').WorldObject} WorldObject
+ * @typedef {import('../types').RepOf} RepOf
+ * @typedef {'ground' | 'prop' | 'item' | 'actor'} Layer
+ * @typedef {{ winner: WorldObject | null, others: WorldObject[] }} LayerPick
+ */
+
+/** @type {Record<string, Layer>} */
 const LAYER_OF = {
   ground: 'ground',
   prop: 'prop',
@@ -23,6 +31,11 @@ const LAYER_OF = {
   enemy: 'actor'
 }
 
+/**
+ * @param {WorldObject} obj
+ * @param {RepOf | null | undefined} repOf
+ * @returns {number}
+ */
 function score (obj, repOf) {
   const r = repOf ? (repOf(obj.creator) ?? 0) : 0
   const ts = obj.ts || 0
@@ -31,7 +44,12 @@ function score (obj, repOf) {
   return r * 1e15 + ts
 }
 
+/**
+ * @param {WorldObject[]} objects
+ * @returns {Record<Layer, WorldObject[]>}
+ */
 export function groupByLayer (objects) {
+  /** @type {Record<Layer, WorldObject[]>} */
   const groups = { ground: [], prop: [], item: [], actor: [] }
   for (const o of objects) {
     const layer = LAYER_OF[o.type]
@@ -45,10 +63,18 @@ export function groupByLayer (objects) {
  * el "ganador" de cada capa marcado.
  *
  * Resultado: { ground:{winner,others}, prop:{winner,others}, items:[], actors:{winner,others} }
+ *
+ * @param {WorldObject[]} objects
+ * @param {RepOf | null} [repOf]
+ * @returns {{ ground: LayerPick, prop: LayerPick, items: WorldObject[], actors: LayerPick }}
  */
 export function resolveTile (objects, repOf) {
   const g = groupByLayer(objects)
 
+  /**
+   * @param {WorldObject[]} arr
+   * @returns {LayerPick}
+   */
   const pickWinner = (arr) => {
     if (arr.length === 0) return { winner: null, others: [] }
     const sorted = arr.slice().sort((a, b) => score(b, repOf) - score(a, repOf))

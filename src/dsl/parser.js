@@ -19,9 +19,25 @@
 //
 // Determinista: no time-of-day ni Math.random — todo proviene de inputs.
 
+/**
+ * @typedef {import('../types').Rule} Rule
+ * @typedef {import('../types').Action} Action
+ * @typedef {import('../types').Expr} Expr
+ * @typedef {import('../types').Operand} Operand
+ * @typedef {import('../types').Literal} Literal
+ * @typedef {import('../types').DslEvent} DslEvent
+ * @typedef {import('../types').CompareOp} CompareOp
+ */
+
+/** @type {Set<string>} */
 const EVENTS = new Set(['tick', 'enter', 'leave', 'adjacent', 'signal', 'use'])
+/** @type {Set<string>} */
 const ACTIONS = new Set(['destroy', 'spawn', 'give', 'set', 'emit', 'move', 'damage', 'heal'])
 
+/**
+ * @param {string | null | undefined} src
+ * @returns {Rule[]}
+ */
 export function parseDSL (src) {
   const rules = []
   const lines = (src || '').split(/\r?\n/)
@@ -32,12 +48,17 @@ export function parseDSL (src) {
     try {
       rules.push(parseRule(line, i + 1))
     } catch (e) {
-      throw new Error(`DSL line ${i + 1}: ${e.message}\n  > ${raw}`)
+      throw new Error(`DSL line ${i + 1}: ${/** @type {Error} */ (e).message}\n  > ${raw}`)
     }
   }
   return rules
 }
 
+/**
+ * @param {string} line
+ * @param {number} lineNo
+ * @returns {Rule}
+ */
 function parseRule (line, lineNo) {
   // on <event>[(<bind>)] [when <expr>] do <action>[; <action>...]
   const m = line.match(/^on\s+(\w+)(?:\(([^)]*)\))?\s*(?:when\s+(.+?))?\s+do\s+(.+)$/i)
@@ -46,7 +67,7 @@ function parseRule (line, lineNo) {
   if (!EVENTS.has(evt)) throw new Error(`unknown event "${evt}"`)
   const actions = actionsSrc.split(';').map(s => s.trim()).filter(Boolean).map(parseAction)
   return {
-    event: evt,
+    event: /** @type {DslEvent} */ (evt),
     bind: bind ? bind.trim() : null,
     when: when ? parseExpr(when.trim()) : null,
     actions,
@@ -54,6 +75,10 @@ function parseRule (line, lineNo) {
   }
 }
 
+/**
+ * @param {string} src
+ * @returns {Action}
+ */
 function parseAction (src) {
   const head = src.split(/\s+/)[0]
   if (!ACTIONS.has(head)) throw new Error(`unknown action "${head}"`)
@@ -92,21 +117,35 @@ function parseAction (src) {
       return { op: head, target: m[1], amount: +m[2] }
     }
   }
+  // ACTIONS ya filtró: aquí no se llega con una acción desconocida.
+  throw new Error(`unknown action "${head}"`)
 }
 
+/**
+ * @param {string} src
+ * @returns {Expr}
+ */
 function parseExpr (src) {
   // Soporta: A op B  with op in == != < <= > >=  ; A/B son paths o literales.
   const m = src.match(/^(.+?)\s*(==|!=|<=|>=|<|>)\s*(.+)$/)
   if (!m) throw new Error(`bad expression "${src}"`)
-  return { lhs: parsePathOrLiteral(m[1].trim()), op: m[2], rhs: parsePathOrLiteral(m[3].trim()) }
+  return { lhs: parsePathOrLiteral(m[1].trim()), op: /** @type {CompareOp} */ (m[2]), rhs: parsePathOrLiteral(m[3].trim()) }
 }
 
+/**
+ * @param {string} s
+ * @returns {Operand}
+ */
 function parsePathOrLiteral (s) {
   const lit = tryLiteral(s)
   if (lit !== undefined) return { kind: 'lit', value: lit }
   return { kind: 'path', path: s.split('.') }
 }
 
+/**
+ * @param {string} s
+ * @returns {Literal | undefined}
+ */
 function tryLiteral (s) {
   if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s)
   if (/^"[^"]*"$/.test(s)) return s.slice(1, -1)
@@ -116,6 +155,10 @@ function tryLiteral (s) {
   return undefined
 }
 
+/**
+ * @param {string} s
+ * @returns {Literal}
+ */
 function parseLiteral (s) {
   const v = tryLiteral(s)
   if (v === undefined) throw new Error(`expected literal, got "${s}"`)

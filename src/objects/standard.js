@@ -6,6 +6,14 @@
 
 import { parseDSL } from '../dsl/parser.js'
 
+/**
+ * @typedef {import('../types').WorldObject} WorldObject
+ * @typedef {import('../types').Pos} Pos
+ * @typedef {import('../types').Rule} Rule
+ * @typedef {{ type: import('../types').ObjectType, payload: import('../types').Payload, dsl: string | null }} Template
+ */
+
+/** @type {Record<string, Template>} */
 const TEMPLATES = {
   // ----- ground modifier -----
   slow_grass: {
@@ -70,16 +78,28 @@ const TEMPLATES = {
 }
 
 // Pre-parse DSL al cargar el módulo.
+/** @type {Record<string, Template & { rules: Rule[] }>} */
 const COMPILED = {}
 for (const [k, t] of Object.entries(TEMPLATES)) {
   COMPILED[k] = { ...t, rules: t.dsl ? parseDSL(t.dsl) : [] }
 }
 
+/** @returns {string[]} */
 export function listKinds () { return Object.keys(COMPILED) }
 
+/**
+ * @param {string} kind
+ * @returns {(Template & { rules: Rule[] }) | null}
+ */
 export function templateOf (kind) { return COMPILED[kind] || null }
 
-export function makeObject (kind, { creator, ts, pos, id, parent = null } = {}) {
+/**
+ * @template {Pos | null} P
+ * @param {string} kind
+ * @param {{ creator: string, ts?: number, pos: P, id?: string, parent?: string | null }} opts
+ * @returns {WorldObject & { pos: P }}
+ */
+export function makeObject (kind, { creator, ts, pos, id, parent = null }) {
   const t = COMPILED[kind]
   if (!t) throw new Error(`unknown standard kind "${kind}"`)
   return {
@@ -97,7 +117,12 @@ export function makeObject (kind, { creator, ts, pos, id, parent = null } = {}) 
 
 // Resolver rules: si el objeto trae `dsl` custom, parse on demand; si es estándar,
 // usa las rules precompiladas del template.
+/** @type {WeakMap<WorldObject, Rule[]>} */
 const _customCache = new WeakMap()
+/**
+ * @param {WorldObject} obj
+ * @returns {Rule[]}
+ */
 export function rulesFor (obj) {
   if (obj.template && COMPILED[obj.template]) return COMPILED[obj.template].rules
   if (obj.dsl) {

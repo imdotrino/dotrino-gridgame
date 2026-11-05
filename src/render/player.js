@@ -6,18 +6,29 @@ const FRAME = 16
 const STEP_MS = 140
 const CYCLE = [0, 1, 0, 2]
 
-/** Cara según el movimiento; manda el eje con más desplazamiento. Quieto, se queda la que había. */
+/**
+ * Cara según el movimiento; manda el eje con más desplazamiento. Quieto, se queda la que había.
+ * @param {number} dx
+ * @param {number} dy
+ * @param {number} [current]
+ * @returns {number} fila del sprite
+ */
 export function facingFor (dx, dy, current = 0) {
   if (!dx && !dy) return current
   if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 1 : 2
   return dy < 0 ? 3 : 0
 }
 
+/**
+ * @param {number} nowMs
+ * @returns {number} columna del sprite
+ */
 export function walkFrame (nowMs) {
   return CYCLE[Math.floor(nowMs / STEP_MS) % CYCLE.length]
 }
 
 export class PlayerSprite {
+  /** @param {string} [src] */
   constructor (src = 'player.png') {
     this.img = new Image()
     this.ready = false
@@ -26,6 +37,14 @@ export class PlayerSprite {
     this.img.src = src
   }
 
+  /**
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} row
+   * @param {number} col
+   * @param {number} dx
+   * @param {number} dy
+   * @param {number} size
+   */
   draw (ctx, row, col, dx, dy, size) {
     ctx.drawImage(this.img, col * FRAME, row * FRAME, FRAME, FRAME, dx, dy, size, size)
   }

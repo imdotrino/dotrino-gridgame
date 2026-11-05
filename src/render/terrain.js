@@ -17,13 +17,19 @@
 //
 // Bits de la máscara: 1 = NO (noroeste), 2 = NE, 4 = SO, 8 = SE.
 
+/** @type {import('../types').GroundType[]} */
 export const LAYERS = ['water', 'sand', 'grass', 'dirt', 'stone']
 export const TILE_PX = 16
 export const FULL = 15
 export const FULL_VARIANTS = [15, 16, 17]
 
+/** @type {Record<string, number>} */
 const LAYER_INDEX = Object.fromEntries(LAYERS.map((t, i) => [t, i]))
 
+/**
+ * @param {string} type
+ * @returns {number}
+ */
 export function layerOf (type) {
   const i = LAYER_INDEX[type]
   if (i === undefined) throw new Error(`terrain: unknown ground type "${type}"`)
@@ -46,7 +52,12 @@ export function quadLayers (c) {
   return out
 }
 
-/** Variante determinista del tile lleno: la misma celda se ve igual en todos los peers. */
+/**
+ * Variante determinista del tile lleno: la misma celda se ve igual en todos los peers.
+ * @param {number} x
+ * @param {number} y
+ * @returns {number}
+ */
 export function fullVariant (x, y) {
   let h = Math.imul((x | 0) ^ 0x27d4eb2d, 0x85ebca6b) ^ Math.imul((y | 0) ^ 0x165667b1, 0xc2b2ae35)
   h ^= h >>> 15
@@ -57,6 +68,7 @@ export function fullVariant (x, y) {
 }
 
 export class TerrainAtlas {
+  /** @param {string} [src] */
   constructor (src = 'terrain.png') {
     this.img = new Image()
     this.ready = false
@@ -69,6 +81,14 @@ export class TerrainAtlas {
     this.img.src = src
   }
 
+  /**
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} layer
+   * @param {number} col
+   * @param {number} dx
+   * @param {number} dy
+   * @param {number} size
+   */
   draw (ctx, layer, col, dx, dy, size) {
     ctx.drawImage(this.img, col * TILE_PX, layer * TILE_PX, TILE_PX, TILE_PX, dx, dy, size, size)
   }

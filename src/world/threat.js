@@ -27,13 +27,41 @@ export const MIN_SPAWN_DIST = 8         // ningún monstruo aparece más cerca q
 export const LEASH_RADIUS = 16          // lo más que se aleja de la casa de su grupo; más allá, se rinde y vuelve
                                         // (más que la distancia a la que aparecen: si no, nunca te alcanzarían)
 
+/**
+ * @typedef {import('../types').Pos} Pos
+ * @typedef {import('../types').PlacedObject} PlacedObject
+ * @typedef {import('../types').Screen} Screen
+ * @typedef {import('../types').PeerTarget} PeerTarget
+ * @typedef {import('../types').IsPassable} IsPassable
+ * @typedef {import('../types').Rand} Rand
+ * @typedef {import('../types').MonsterRole} MonsterRole
+ * @typedef {{ maxAlive: number, intervalMs: number, packSize: number, hp: number, dmg: number, bossChance: number }} Threat
+ * @typedef {{ role: MonsterRole, pos: Pos, hp: number, dmg: number, aggro: number, scale: number }} PackMember
+ * @typedef {{ kind: 'player', pos: Pos, d: number }
+ *   | { kind: 'peer', pk: string, pos: Pos, d: number }
+ *   | { kind: 'structure', obj: PlacedObject, pos: Pos, d: number }} Target
+ */
+
+/** @type {Set<string>} */
 const STRUCTURE_TYPES = new Set(['prop', 'npc'])
 
+/**
+ * @param {Pos} a
+ * @param {Pos} b
+ * @returns {number}
+ */
 export function chebyshev (a, b) {
   return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
 }
 
-/** Lo que hosteo cerca: mis objetos que un monstruo puede atacar. */
+/**
+ * Lo que hosteo cerca: mis objetos que un monstruo puede atacar.
+ * @param {PlacedObject[]} objs
+ * @param {string} myPk
+ * @param {Pos} pos
+ * @param {number} [radius]
+ * @returns {PlacedObject[]}
+ */
 export function structuresNear (objs, myPk, pos, radius = THREAT_RADIUS) {
   return objs.filter((o) => o.creator === myPk && STRUCTURE_TYPES.has(o.type) && o.pos && chebyshev(o.pos, pos) <= radius)
 }
@@ -41,6 +69,9 @@ export function structuresNear (objs, myPk, pos, radius = THREAT_RADIUS) {
 /**
  * Cuántos, cada cuánto, de qué tamaño y qué tan fuertes, según lo hosteado cerca y la
  * reputación. Aparecen en GRUPOS: `packSize` es el tamaño medio de cada grupo.
+ *
+ * @param {{ hosted: number, rep: number }} input
+ * @returns {Threat}
  */
 export function threatFor ({ hosted, rep }) {
   const r = Math.max(0, Math.min(1, rep || 0))
@@ -59,6 +90,8 @@ export function threatFor ({ hosted, rep }) {
  * Papeles dentro de un grupo. `aggro` es la IRA ∈ [0,1]: la distancia a la que te ve es
  * `aggro × AGGRO_RANGE`, así que con ira 0 no ve a nadie y solo ataca si le pegan.
  * `scale` es el tamaño con que se dibuja.
+ *
+ * @type {Record<MonsterRole, { hp: number, dmg: number, aggro: [number, number], scale: number }>}
  */
 export const ROLES = {
   minion: { hp: 0.5, dmg: 0.5, aggro: [0, 0.4], scale: 0.8 },
@@ -71,16 +104,23 @@ export const ROLES = {
  * Un grupo alrededor de `center`: un líder (o, a veces, un jefe), algunos normales y el
  * resto esbirros. Cada uno con su sitio libre a ≤ 2 casillas del centro y a MIN_SPAWN_DIST
  * o más de todos los `players`.
- * @returns {{role:string, pos:{x:number,y:number}, hp:number, dmg:number, aggro:number, scale:number}[]}
+ * @param {Pos} center
+ * @param {Threat} threat
+ * @param {Rand} rand
+ * @param {IsPassable} isPassable
+ * @param {Pos[]} [players]
+ * @returns {PackMember[]}
  */
 export function makePack (center, threat, rand, isPassable, players = []) {
   const size = Math.max(2, threat.packSize - 1 + Math.floor(rand() * 3))   // ±1 alrededor de la media
+  /** @type {MonsterRole[]} */
   const roles = [rand() < threat.bossChance ? 'boss' : 'leader']
   for (let i = 1; i < size; i++) roles.push(rand() < 0.4 ? 'normal' : 'minion')
   const taken = new Set()
   const spots = []
   for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) spots.push({ x: center.x + dx, y: center.y + dy, d: Math.abs(dx) + Math.abs(dy) })
   spots.sort((a, b) => a.d - b.d)
+  /** @type {PackMember[]} */
   const out = []
   for (const role of roles) {
     // Siempre un poco alejados de CUALQUIER jugador: nunca a menos de MIN_SPAWN_DIST.
@@ -100,7 +140,13 @@ export function makePack (center, threat, rand, isPassable, players = []) {
   return out
 }
 
-/** ¿Está `p` dentro de la zona de memoria (2× pantalla) alrededor de `center`? */
+/**
+ * ¿Está `p` dentro de la zona de memoria (2× pantalla) alrededor de `center`?
+ * @param {Pos} p
+ * @param {Pos} center
+ * @param {Screen | null | undefined} screen
+ * @returns {boolean}
+ */
 export function inMemoryZone (p, center, screen) {
   if (!screen) return false
   return Math.abs(p.x - center.x) <= screen.halfW * MEMORY_FACTOR && Math.abs(p.y - center.y) <= screen.halfH * MEMORY_FACTOR
@@ -115,7 +161,9 @@ export function inMemoryZone (p, center, screen) {
  *   - La distancia: en un teléfono la pantalla es estrecha y los grupos APARECEN ya fuera
  *     de ella (a 9–14 casillas); sin ella, se borrarían al nacer.
  * @param {{pos:{x:number,y:number}}[]} members
- * @param {{halfW:number, halfH:number}} screen media pantalla en casillas
+ * @param {Pos | Pos[]} player
+ * @param {Screen | null | undefined} screen media pantalla en casillas
+ * @returns {boolean}
  */
 export function packGone (members, player, screen) {
   if (!members.length) return true
@@ -124,13 +172,22 @@ export function packGone (members, player, screen) {
     !inMemoryZone(m.pos, p, screen) && chebyshev(m.pos, p) > PACK_GONE_DIST))
 }
 
-/** Ningún jugador a menos de MIN_SPAWN_DIST: en una zona con mucha gente no aparecen. */
+/**
+ * Ningún jugador a menos de MIN_SPAWN_DIST: en una zona con mucha gente no aparecen.
+ * @param {Pos} p
+ * @param {Pos[]} players
+ * @returns {boolean}
+ */
 export function farFromAll (p, players) {
   for (const q of players) if (chebyshev(p, q) < MIN_SPAWN_DIST) return false
   return true
 }
 
-/** A cuántas casillas ve un monstruo con esa ira. */
+/**
+ * A cuántas casillas ve un monstruo con esa ira.
+ * @param {number | undefined} aggro
+ * @returns {number}
+ */
 export const sightOf = (aggro) => Math.round(Math.max(0, aggro || 0) * AGGRO_RANGE)
 
 /**
@@ -145,9 +202,17 @@ export const sightOf = (aggro) => Math.round(Math.max(0, aggro || 0) * AGGRO_RAN
  *   - `playerSafe`: el jugador está caído o recién reaparecido: no se le elige.
  *   - la CORREA: nada a más de LEASH_RADIUS de la casa de su grupo. Si lo sacas de ahí,
  *     se rinde y vuelve (`mustReturn`).
+ *
+ * @param {PlacedObject} m el monstruo
+ * @param {Pos} player
+ * @param {PlacedObject[]} structures
+ * @param {boolean} [playerSafe]
+ * @param {PeerTarget[]} [others]
+ * @returns {Target | null}
  */
 export function chooseTarget (m, player, structures, playerSafe = false, others = []) {
   const home = m.payload?.home
+  /** @param {Pos} p */
   const inLeash = (p) => !home || chebyshev(p, home) <= LEASH_RADIUS
   const by = m.payload?.provoked && m.payload?.provokedBy
   if (by) {
@@ -160,6 +225,7 @@ export function chooseTarget (m, player, structures, playerSafe = false, others 
   if (m.payload?.provoked && playerOk) return { kind: 'player', pos: player, d: chebyshev(m.pos, player) }
   const sight = sightOf(m.payload?.aggro)
   if (sight === 0) return null
+  /** @type {Target | null} */
   let best = null
   if (playerOk) best = { kind: 'player', pos: player, d: chebyshev(m.pos, player) }
   for (const st of structures) {
@@ -170,14 +236,26 @@ export function chooseTarget (m, player, structures, playerSafe = false, others 
   return best && best.d <= sight ? best : null
 }
 
-/** Fuera de su casa más de HOME_RADIUS y sin nada que hacer: tiene que volver. */
+/**
+ * Fuera de su casa más de HOME_RADIUS y sin nada que hacer: tiene que volver.
+ * @param {PlacedObject} m
+ * @returns {boolean}
+ */
 export function mustReturn (m) {
   const home = m.payload?.home
   return !!home && chebyshev(m.pos, home) > HOME_RADIUS
 }
 
-/** Un paso al azar que no lo aleje más de HOME_RADIUS de su casa. Null si no toca moverse. */
+/**
+ * Un paso al azar que no lo aleje más de HOME_RADIUS de su casa. Null si no toca moverse.
+ * @param {Pos} pos
+ * @param {Pos | undefined} home
+ * @param {Rand} rand
+ * @param {IsPassable} isPassable
+ * @returns {Pos | null}
+ */
 export function wanderStep (pos, home, rand, isPassable) {
+  /** @type {[number, number][]} */
   const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]
   const [dx, dy] = DIRS[Math.floor(rand() * 4)]
   const next = { x: pos.x + dx, y: pos.y + dy }
@@ -189,6 +267,11 @@ export function wanderStep (pos, home, rand, isPassable) {
  * Centro de un grupo: en el anillo de 9 a 14 casillas alrededor del jugador, transitable.
  * Más allá del borde de la vista de casi todos, para que se acerquen y no aparezcan encima.
  * `rand` es una función [0,1). Null si no encuentra sitio (rodeado de agua): ese turno no sale.
+ *
+ * @param {Pos} pos
+ * @param {Rand} rand
+ * @param {IsPassable} isPassable
+ * @returns {Pos | null}
  */
 export function spawnSpot (pos, rand, isPassable) {
   for (let i = 0; i < 24; i++) {
@@ -201,8 +284,15 @@ export function spawnSpot (pos, rand, isPassable) {
   return null
 }
 
-/** El objetivo más cercano entre el jugador y sus estructuras. */
+/**
+ * El objetivo más cercano entre el jugador y sus estructuras.
+ * @param {Pos} from
+ * @param {Pos} player
+ * @param {PlacedObject[]} structures
+ * @returns {Target}
+ */
 export function pickTarget (from, player, structures) {
+  /** @type {Target} */
   let best = { kind: 'player', pos: player, d: chebyshev(from, player) }
   for (const s of structures) {
     const d = chebyshev(from, s.pos)
@@ -216,12 +306,21 @@ export function pickTarget (from, player, structures) {
  * el objetivo puede ser sólido, como una roca). Búsqueda en anchura sobre un cuadrado de
  * `radius` alrededor del monstruo, en cuatro direcciones. Null si no hay camino: se queda
  * quieto en vez de empujar contra la pared.
+ *
+ * @param {Pos} from
+ * @param {Pos} to
+ * @param {IsPassable} isPassable
+ * @param {number} [radius]
+ * @returns {Pos | null}
  */
 export function stepToward (from, to, isPassable, radius = 12) {
   if (chebyshev(from, to) <= 1) return null
+  /** @param {number} x @param {number} y */
   const key = (x, y) => `${x},${y}`
+  /** @type {Map<string, Pos | null>} */
   const prev = new Map([[key(from.x, from.y), null]])
   const queue = [from]
+  /** @type {[number, number][]} */
   const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]
   for (let i = 0; i < queue.length; i++) {
     const c = queue[i]

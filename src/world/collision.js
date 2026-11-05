@@ -4,6 +4,13 @@
 
 import { ProceduralGround } from './ProceduralGround.js'
 
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {ProceduralGround} ground
+ * @param {import('./LocalStore.js').LocalStore | null} [store]
+ * @returns {{ passable: boolean, speed: number }}
+ */
 export function passableAt (x, y, ground, store) {
   const tx = Math.round(x), ty = Math.round(y)
   const t = ground.tileAt(tx, ty)

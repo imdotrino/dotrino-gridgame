@@ -6,6 +6,11 @@
 // En rep=0 → 0. En rep=1 → cap. Curva log con ganancias decrecientes que
 // favorece el avance temprano.
 
+/**
+ * @param {number} cap
+ * @param {number} repBearer
+ * @returns {number}
+ */
 export function powerFor (cap, repBearer) {
   if (!cap || cap <= 0) return 0
   const r = Math.max(0, Math.min(1, repBearer || 0))
@@ -13,6 +18,10 @@ export function powerFor (cap, repBearer) {
 }
 
 // Snapshot del cap al craftear: rep_creador en ese momento (normalizada).
+/**
+ * @param {number} repCreator
+ * @returns {number}
+ */
 export function capOnCraft (repCreator) {
   return Math.max(0, Math.min(1, repCreator || 0))
 }

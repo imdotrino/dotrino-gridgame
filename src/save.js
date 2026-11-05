@@ -8,7 +8,9 @@
 //
 // Sin repliegue: si el almacén no abre, la posición NO se guarda y la app lo dice.
 
-import { Store, LOCAL_PREFIX } from '@dotrino/store'
+import { Store } from '@dotrino/store'
+// @ts-expect-error -- @dotrino/store (≤ 0.14.2) exporta LOCAL_PREFIX desde src/index.js pero su index.d.ts no lo declara.
+import { LOCAL_PREFIX } from '@dotrino/store'
 
 export const POS_THREAD = `${LOCAL_PREFIX}gridgame.position`
 // Ya no sale a la bóveda, pero sigue siendo IndexedDB: un guardado por segundo al andar
@@ -18,6 +20,9 @@ const SAVE_EVERY_MS = 1000
 /**
  * Abre el almacén con la identidad del perfil. Lanza si no se puede: quien llama
  * decide qué enseñar.
+ *
+ * @param {import('@dotrino/identity').Identity | null} identity
+ * @returns {Promise<Store>}
  */
 export async function openStore (identity) {
   if (!identity) throw Object.assign(new Error('no identity: position is not saved'), { code: 'no-identity' })
@@ -29,7 +34,11 @@ export async function openStore (identity) {
 // borrado también la quita de la bóveda). Lo cubre `tests/smoke.mjs` §13.
 const OLD_POS_THREAD = 'gridgame.position'
 
-/** Lee la última posición guardada, o null si nunca se guardó. Una entrada rota lanza. */
+/**
+ * Lee la última posición guardada, o null si nunca se guardó. Una entrada rota lanza.
+ * @param {Pick<Store, 'listThread' | 'removeThread'>} store
+ * @returns {Promise<import('./types').Pos | null>}
+ */
 export async function loadPosition (store) {
   let entries = await store.listThread(POS_THREAD, {})
   const old = await store.listThread(OLD_POS_THREAD, {})
@@ -51,16 +60,27 @@ export async function loadPosition (store) {
  * o vacío.
  */
 export class PositionSaver {
+  /**
+   * @param {Pick<Store, 'removeThread' | 'appendMessage'>} store
+   * @param {{ onError?: (e: unknown) => void }} [opts]
+   */
   constructor (store, { onError } = {}) {
     this.store = store
-    this.onError = onError || ((e) => console.error('[gridgame] could not save position', e))
+    this.onError = onError || ((/** @type {unknown} */ e) => console.error('[gridgame] could not save position', e))
+    /** @type {import('./types').Pos | null} */
     this.last = null
+    /** @type {import('./types').Pos | null} */
     this.pending = null
+    /** @type {ReturnType<typeof setTimeout> | null} */
     this.timer = null
     this.chain = Promise.resolve()
   }
 
-  /** Posición actual; se escribe al cumplirse el intervalo. */
+  /**
+   * Posición actual; se escribe al cumplirse el intervalo.
+   * @param {number} x
+   * @param {number} y
+   */
   update (x, y) {
     const pos = { x: Math.round(x), y: Math.round(y) }
     if (this.last && this.last.x === pos.x && this.last.y === pos.y) return
@@ -68,9 +88,12 @@ export class PositionSaver {
     if (!this.timer) this.timer = setTimeout(() => this.flush(), SAVE_EVERY_MS)
   }
 
-  /** Escribe ya lo que haya pendiente (al ocultarse la pestaña, por ejemplo). */
+  /**
+   * Escribe ya lo que haya pendiente (al ocultarse la pestaña, por ejemplo).
+   * @returns {Promise<void>}
+   */
   flush () {
-    clearTimeout(this.timer)
+    if (this.timer) clearTimeout(this.timer)
     this.timer = null
     const pos = this.pending
     if (!pos) return this.chain

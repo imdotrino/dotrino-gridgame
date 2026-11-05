@@ -19,12 +19,23 @@ export class PlayerLife {
     this.lastRegenAt = -Infinity
   }
 
+  /** @param {number} now @returns {boolean} */
   isDead (now) { return now < this.deadUntil }
+  /** @param {number} now @returns {boolean} */
   isProtected (now) { return !this.isDead(now) && now < this.protectedUntil }
-  /** Muerto o protegido: los monstruos no lo eligen y sus golpes no cuentan. */
+  /**
+   * Muerto o protegido: los monstruos no lo eligen y sus golpes no cuentan.
+   * @param {number} now
+   * @returns {boolean}
+   */
   isSafe (now) { return now < this.deadUntil || now < this.protectedUntil }
 
-  /** Recibe un golpe. Devuelve 'died' si este golpe lo mata. */
+  /**
+   * Recibe un golpe. Devuelve 'died' si este golpe lo mata.
+   * @param {number} dmg
+   * @param {number} now
+   * @returns {'ignored' | 'hurt' | 'died'}
+   */
   hit (dmg, now) {
     if (this.isSafe(now)) return 'ignored'
     this.hp = Math.max(0, this.hp - dmg)
@@ -35,7 +46,11 @@ export class PlayerLife {
     return 'died'
   }
 
-  /** Avanza el reloj. Devuelve 'respawned' el frame en que termina la espera. */
+  /**
+   * Avanza el reloj. Devuelve 'respawned' el frame en que termina la espera.
+   * @param {number} now
+   * @returns {'respawned' | null}
+   */
   update (now) {
     if (this.hp === 0 && !this.isDead(now)) {
       this.hp = MAX_HP
@@ -48,7 +63,12 @@ export class PlayerLife {
     return null
   }
 
-  /** Segundos que faltan (para el contador), redondeados hacia arriba; 0 si no aplica. */
+  /**
+   * Segundos que faltan (para el contador), redondeados hacia arriba; 0 si no aplica.
+   * @param {number} now
+   * @returns {number}
+   */
   secondsToRespawn (now) { return this.isDead(now) ? Math.ceil((this.deadUntil - now) / 1000) : 0 }
+  /** @param {number} now @returns {number} */
   secondsProtected (now) { return this.isProtected(now) ? Math.ceil((this.protectedUntil - now) / 1000) : 0 }
 }

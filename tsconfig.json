@@ -10,24 +10,25 @@
     ],
     "allowJs": true,
     "checkJs": true,
-    "strict": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
+    "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
     "noEmit": true,
     "paths": {
       "@/*": [
         "./src/*"
       ]
-    }
+    },
+    "types": [
+      "vite/client"
+    ]
   },
   "include": [
     "src/**/*.js",
     "src/**/*.mjs",
-    "src/**/*.d.ts"
+    "src/**/*.d.ts",
+    "src/**/*.vue"
   ],
   "exclude": [
     "node_modules",

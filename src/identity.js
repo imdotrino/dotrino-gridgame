@@ -10,15 +10,20 @@
 import { Identity } from '@dotrino/identity'
 import { createVaultReputation } from '@dotrino/reputation'
 
+/** @type {Identity | null} */
 let identity = null
+/** @type {string | null} */
 let myPubkey = null
+/** @type {import('@dotrino/reputation').VaultReputation | null} */
 let _rep = null
+/** @type {Map<string, { v: number, exp: number }>} */
 const repCache = new Map() // pk → { v, exp }
 const CACHE_MS = 30_000
 
 // Puente al registro compartido (reputation.dotrino.com). Su reputationOf ya
 // pondera por mi web-of-trust local (anti-sybil) y suma endorsements de la red
 // que no me habrían llegado por el proxy.
+/** @returns {import('@dotrino/reputation').VaultReputation | null} */
 function getRep () {
   if (_rep) return _rep
   if (!identity) return null
@@ -26,33 +31,48 @@ function getRep () {
   return _rep
 }
 
+/** @returns {Promise<Identity | null>} */
 export async function initIdentity () {
   if (identity) return identity
   try {
     identity = await Identity.connect()
     myPubkey = identity.me?.publickey || null
   } catch (e) {
-    console.warn('[identity] vault unreachable, running in standalone mode:', e.message)
+    console.warn('[identity] vault unreachable, running in standalone mode:', /** @type {Error} */ (e).message)
     identity = null
   }
   return identity
 }
 
+/** @returns {string | null} */
 export function getMyPubkey () { return myPubkey }
 
-/** Instancia de identidad y de reputación (para <dotrino-profile>). */
+/**
+ * Instancia de identidad (para <dotrino-profile>).
+ * @returns {Identity | null}
+ */
 export function getIdentity () { return identity }
+/** @returns {import('@dotrino/reputation').VaultReputation | null} */
 export function getReputation () { return getRep() }
 
+/** @returns {boolean} */
 export function isIdentityReady () { return identity !== null }
 
-/** Firma un payload JSON-serializable. Devuelve { signature, publickey } o null. */
+/**
+ * Firma un payload JSON-serializable. Devuelve { signature, publickey } o null.
+ * @param {unknown} data
+ * @returns {Promise<{ signature: string, publickey: string } | null>}
+ */
 export async function sign (data) {
   if (!identity) return null
   try { return await identity.signData(data) } catch (e) { console.warn('[identity] sign failed', e); return null }
 }
 
-/** Reputación agregada local sobre un peer (subjetiva). */
+/**
+ * Reputación agregada local sobre un peer (subjetiva).
+ * @param {string | null | undefined} pk
+ * @returns {Promise<number>}
+ */
 export async function repOf (pk) {
   if (!pk) return 0
   if (pk === myPubkey) return 1 // confío en mí mismo
@@ -83,18 +103,30 @@ export async function repOf (pk) {
   return v
 }
 
-/** Versión sincrónica para hot paths (render): devuelve la cache, 0 si no hay. */
+/**
+ * Versión sincrónica para hot paths (render): devuelve la cache, 0 si no hay.
+ * @param {string | null | undefined} pk
+ * @returns {number}
+ */
 export function repOfSync (pk) {
   if (!pk) return 0
   if (pk === myPubkey) return 1
   return repCache.get(pk)?.v ?? 0
 }
 
-/** Pre-carga rep de una lista de peers en la cache. */
+/**
+ * Pre-carga rep de una lista de peers en la cache.
+ * @param {string[]} pks
+ * @returns {Promise<void>}
+ */
 export async function warmRep (pks) {
   await Promise.all([...new Set(pks)].map(repOf))
 }
 
+/**
+ * @param {{ mine: import('@dotrino/identity').SignedRating | null, endorsements: import('@dotrino/identity').SignedRating[] } | null | undefined} r
+ * @returns {number}
+ */
 function aggregate (r) {
   // r = { mine: envOrNull, endorsements: [...] }
   const samples = []
@@ -111,6 +143,7 @@ function aggregate (r) {
   return Math.max(0, Math.min(1, avg / 5))
 }
 
+/** @returns {void} */
 export function clearRepCache () { repCache.clear() }
 
 // Mi reputación TAL COMO LA VEN LOS DEMÁS (el registro compartido). No es repOfSync(yo),
@@ -118,10 +151,12 @@ export function clearRepCache () { repCache.clear() }
 // de los monstruos y la fuerza de mis golpes lo que cuenta es lo que la red dice de mí.
 //   - sin bóveda: 0, y es un dato, no un hueco: sin identidad nadie responde por ti.
 //   - null: todavía no se sabe (o el registro nunca contestó). Quien la usa decide.
+/** @type {number | null} */
 let standing = null
 let standingAt = 0
 const STANDING_MS = 60_000
 
+/** @returns {Promise<number>} */
 export async function refreshMyStanding () {
   if (!identity || !myPubkey) { standing = 0; return standing }
   const rep = getRep()
@@ -132,7 +167,10 @@ export async function refreshMyStanding () {
   return standing
 }
 
-/** Lo último que se sabe (null si nunca se supo). Refresca por detrás cada minuto. */
+/**
+ * Lo último que se sabe (null si nunca se supo). Refresca por detrás cada minuto.
+ * @returns {number | null}
+ */
 export function myStandingSync () {
   if (Date.now() - standingAt > STANDING_MS) {
     standingAt = Date.now() // no pedirlo en cada frame mientras llega

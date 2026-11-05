@@ -1,8 +1,17 @@
 // Determinista: tile_base(x, y) idéntico en todos los peers dada la misma seed.
 // Hash entero 32-bit estilo xorshift para evitar deps.
 
+/** @typedef {import('../types').GroundType} GroundType */
+
+/** @type {GroundType[]} */
 const TILE_TYPES = ['grass', 'dirt', 'stone', 'water', 'sand']
 
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {number} seed
+ * @returns {number}
+ */
 function hash32 (x, y, seed) {
   let h = (seed | 0) ^ 0x9E3779B9
   h = Math.imul(h ^ (x | 0), 0x85EBCA6B)
@@ -16,6 +25,12 @@ function hash32 (x, y, seed) {
 // Ruido de valor por octavas (fBm): manchas grandes y orgánicas en vez de confeti.
 // El dibujo no le pide nada al generador: el autotile de rejilla doble
 // (render/terrain.js) pinta sin cortes cualquier combinación de vecinos.
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {number} seed
+ * @returns {number}
+ */
 function valueNoise (x, y, seed) {
   const x0 = Math.floor(x), y0 = Math.floor(y)
   const fx = x - x0, fy = y - y0
@@ -26,6 +41,13 @@ function valueNoise (x, y, seed) {
   return (top + (bot - top) * v) / 0xFFFFFFFF
 }
 
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {number} seed
+ * @param {number} [base]
+ * @returns {number}
+ */
 function fbm (x, y, seed, base = 24) {
   let sum = 0, amp = 0.5, norm = 0, scale = 1 / base
   for (let o = 0; o < 4; o++) {
@@ -38,15 +60,22 @@ function fbm (x, y, seed, base = 24) {
 }
 
 export class ProceduralGround {
+  /** @param {number} [seed] */
   constructor (seed = 0xC10C3E) {
     this.seed = seed | 0
   }
 
   // Bioma por dos campos: ALTURA (agua → playa → tierras → colinas → roca) y
   // HUMEDAD (en las tierras medias decide entre desierto, tierra seca y pradera).
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {import('../types').GroundTile}
+   */
   tileAt (x, y) {
     const n = fbm(x, y, this.seed)
     const m = fbm(x, y, this.seed ^ 0x5bd1e995, 48)
+    /** @type {GroundType} */
     let type
     if (n < 0.33) type = 'water'
     else if (n < 0.37) type = 'sand'
@@ -58,6 +87,10 @@ export class ProceduralGround {
     return { type, n, m }
   }
 
+  /**
+   * @param {string} type
+   * @returns {string}
+   */
   static colorFor (type) {
     switch (type) {
       case 'water': return '#2a6fdb'
@@ -69,9 +102,14 @@ export class ProceduralGround {
     }
   }
 
+  /** @returns {GroundType[]} */
   static get TYPES () { return TILE_TYPES.slice() }
 
   // Velocidad relativa por tipo de ground. 0 = intransitable, 1 = normal.
+  /**
+   * @param {string} type
+   * @returns {number}
+   */
   static speedFor (type) {
     switch (type) {
       case 'water': return 0
@@ -83,11 +121,20 @@ export class ProceduralGround {
     }
   }
 
+  /**
+   * @param {string} type
+   * @returns {boolean}
+   */
   static isPassable (type) { return ProceduralGround.speedFor(type) > 0 }
 
   // Props/items procedurales determinísticos por (x,y,seed). No se replican:
   // cada peer los genera igual. Una segunda capa de hash decide qué hay.
   // Densidad baja para no saturar.
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {import('../types').ProceduralObject | null}
+   */
   proceduralObjectAt (x, y) {
     const t = this.tileAt(x, y).type
     const h = hash32(x * 17 + 1, y * 31 - 3, this.seed) / 0xFFFFFFFF

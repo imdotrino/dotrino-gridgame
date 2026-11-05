@@ -17,14 +17,31 @@ export const MAX_FPS = 30
 const FRAME_MS = 1000 / MAX_FPS
 
 // Color por papel: el líder tira a dorado y el jefe a morado, para leerlos de un vistazo.
+/**
+ * @typedef {import('../types').WorldObject} WorldObject
+ * @typedef {import('../types').PlacedObject} PlacedObject
+ * @typedef {import('../types').OtherPlayer} OtherPlayer
+ * @typedef {import('../types').RepOf} RepOf
+ * @typedef {typeof HUD_FALLBACK} HudLabels
+ * @typedef {ReturnType<typeof resolveTile>} ResolvedTile
+ */
+
+/** @type {Record<string, string>} */
 const ROLE_TINT = { leader: 'hue-rotate(-55deg) saturate(1.4)', boss: 'hue-rotate(160deg) saturate(1.6) brightness(0.85)' }
 
 const HUD_FALLBACK = { pos: 'pos', seed: 'world', objects: 'objects', own: 'own', others: 'others', saved: 'saved', total: 'total' }
 
 export class WorldView {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {{ tileSize?: number, ground?: ProceduralGround, store?: import('../world/LocalStore.js').LocalStore | null, repOf?: RepOf | null, hudLabels?: (() => HudLabels) | null }} [opts]
+   */
   constructor (canvas, { tileSize = 24, ground, store = null, repOf = null, hudLabels = null } = {}) {
     this.canvas = canvas
-    this.ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d')
+    // Sin contexto 2D no hay nada que dibujar: se dice aquí, no en el primer fotograma.
+    if (!ctx) throw new Error('WorldView: canvas has no 2d context')
+    this.ctx = ctx
     this.tileSize = tileSize
     this.ground = ground || new ProceduralGround()
     this.store = store
@@ -39,21 +56,35 @@ export class WorldView {
     this.facing = 0 // fila del sprite: 0 abajo, 1 izquierda, 2 derecha, 3 arriba
     this.walking = false
     // Vida del jugador y el último golpe recibido: los fija la app.
+    /** @type {{ hp: number, max: number } | null} */
     this.playerHp = null
     this.hurtAt = -Infinity
     // Los demás jugadores: [{ x, y, facing, walking }]. Los fija la app con lo que llega por red.
+    /** @type {OtherPlayer[]} */
     this.others = []
-    this.lifeState = 'alive' // 'alive' | 'dead' | 'protected'
+    /** @type {'alive' | 'dead' | 'protected'} */
+    this.lifeState = 'alive'
+    /** @type {Map<string, { x: number, y: number }>} */
     this._shown = new Map() // pk → { x, y } dibujado: se acerca suave a lo último recibido
     // Lo mismo para los actores (monstruos, mercaderes): su posición cambia de casilla en
     // casilla cada 0,6 s; dibujarlos ahí tal cual se ve a saltos.
+    /** @type {Map<string, { x: number, y: number, seen?: number }>} */
     this._actorShown = new Map() // id → { x, y, seen }
     this._lastDrawAt = 0
     this._dt = 16.7
+    /** @type {number | null} */
     this._raf = null
+    /** @type {number | undefined} fotogramas por segundo medidos, para el HUD */
+    this.fps = undefined
+    this._fpsCount = 0
+    this._fpsAt = 0
   }
 
-  /** El movimiento de este frame: decide la cara del sprite y si anda. */
+  /**
+   * El movimiento de este frame: decide la cara del sprite y si anda.
+   * @param {number} dx
+   * @param {number} dy
+   */
   setMotion (dx, dy) {
     this.walking = !!(dx || dy)
     if (this.walking) this.facing = facingFor(dx, dy, this.facing)
@@ -66,6 +97,7 @@ export class WorldView {
     // (se para solo con la pestaña oculta) y se salta el que llega antes de tiempo. El
     // margen de 2 ms evita que a 60 Hz, por el temblor del reloj, salgan 20 en vez de 30.
     let last = 0
+    /** @param {number} t */
     const loop = (t) => {
       this._raf = requestAnimationFrame(loop)
       if (t - last < FRAME_MS - 2) return
@@ -272,6 +304,12 @@ export class WorldView {
     lines.forEach((ln, i) => ctx.fillText(ln, 16, 26 + i * 16))
   }
 
+  /**
+   * @param {import('../types').ProceduralObject} proc
+   * @param {number} px
+   * @param {number} py
+   * @param {number} ts
+   */
   _drawProcedural (proc, px, py, ts) {
     if (this.sheet.draw(this.ctx, proc.kind, px, py, ts)) return
     const ctx = this.ctx
@@ -287,6 +325,12 @@ export class WorldView {
     }
   }
 
+  /**
+   * @param {ResolvedTile} r
+   * @param {number} px
+   * @param {number} py
+   * @param {number} ts
+   */
   _drawCell (r, px, py, ts) {
     const ctx = this.ctx
     if (r.ground.winner) {
@@ -303,7 +347,8 @@ export class WorldView {
         ctx.fillStyle = '#5a3a1a'
         ctx.fillRect(px + ts * 0.15, py + ts * 0.15, ts * 0.7, ts * 0.7)
       }
-      if (pw.payload?.max_hp && pw.payload.hp < pw.payload.max_hp) this._hpBar(px, py, ts, pw.payload.hp, pw.payload.max_hp, '#e0a030')
+      const php = pw.payload?.hp
+      if (pw.payload?.max_hp && php !== undefined && php < pw.payload.max_hp) this._hpBar(px, py, ts, php, pw.payload.max_hp, '#e0a030')
     }
     for (const it of r.items) {
       const kind = it.payload?.kind
@@ -315,8 +360,8 @@ export class WorldView {
       }
     }
     if (r.actors.winner) {
-      this._drawActor(r.actors.winner, px, py, ts)
-      for (const ghost of r.actors.others) {
+      this._drawActor(/** @type {PlacedObject} */ (r.actors.winner), px, py, ts)
+      for (const ghost of /** @type {PlacedObject[]} */ (r.actors.others)) {
         ctx.save()
         ctx.globalAlpha = 0.35
         this._drawActor(ghost, px, py, ts)
@@ -326,6 +371,12 @@ export class WorldView {
   }
 
   /** Un actor: su sprite con sombra; sin sprite (o mientras carga), un rectángulo de su color. */
+  /**
+   * @param {PlacedObject} a
+   * @param {number} px
+   * @param {number} py
+   * @param {number} ts
+   */
   _drawActor (a, px, py, ts) {
     const ctx = this.ctx
     // Deslizarse hacia su casilla en vez de saltar: un paso dura 0,6 s, así que en ~0,2 s
@@ -351,7 +402,8 @@ export class WorldView {
       ctx.beginPath()
       ctx.ellipse(px + ts / 2, py + ts * 0.92, ts * 0.3 * scale, ts * 0.11 * scale, 0, 0, Math.PI * 2)
       ctx.fill()
-      const tint = ROLE_TINT[a.payload?.role]
+      const role = a.payload?.role
+      const tint = role === undefined ? undefined : ROLE_TINT[role]
       if (tint) ctx.filter = tint
       this.actors.draw(ctx, row, idleFrame(performance.now(), phaseOf(a.id)), dx, dy, size)
       if (tint) ctx.filter = 'none'
@@ -365,14 +417,29 @@ export class WorldView {
   }
 
   /** Barra de vida de un actor, solo si está herido. */
+  /**
+   * @param {WorldObject} a
+   * @param {number} px
+   * @param {number} py
+   * @param {number} ts
+   */
   _actorHp (a, px, py, ts) {
     const p = a.payload
     // El jefe enseña su vida siempre; los demás, solo heridos.
-    if (!p?.max_hp || (p.hp >= p.max_hp && p.role !== 'boss')) return
-    this._hpBar(px, py, ts, p.hp, p.max_hp, a.type === 'enemy' ? '#e04040' : '#e0a030')
+    // `hp` ausente cuenta como herido, como hacía la comparación con undefined.
+    if (!p?.max_hp || ((p.hp ?? NaN) >= p.max_hp && p.role !== 'boss')) return
+    this._hpBar(px, py, ts, p.hp ?? NaN, p.max_hp, a.type === 'enemy' ? '#e04040' : '#e0a030')
   }
 
   /** Barra fina sobre la casilla (px, py). */
+  /**
+   * @param {number} px
+   * @param {number} py
+   * @param {number} ts
+   * @param {number} hp
+   * @param {number} max
+   * @param {string} color
+   */
   _hpBar (px, py, ts, hp, max, color) {
     const ctx = this.ctx
     const w = ts * 0.8

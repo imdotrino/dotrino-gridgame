@@ -18,12 +18,28 @@ import {
   chebyshev, structuresNear, threatFor, spawnSpot, makePack, farFromAll, chooseTarget, mustReturn, stepToward, wanderStep
 } from './world/threat.js'
 
+/**
+ * @typedef {import('./types').Pos} Pos
+ * @typedef {import('./types').WorldObject} WorldObject
+ * @typedef {import('./types').PlacedObject} PlacedObject
+ * @typedef {import('./types').Screen} Screen
+ * @typedef {import('./types').PeerTarget} PeerTarget
+ * @typedef {import('./types').IsPassable} IsPassable
+ * @typedef {import('./types').NetEvent} NetEvent
+ * @typedef {import('./world/LocalStore.js').LocalStore} LocalStore
+ * @typedef {import('./net/PeerLink.js').PeerLink} PeerLink
+ */
+
 export class CombatHost {
   /**
    * @param {object} o
-   * @param {(dmg:number, by:object) => void} o.onPlayerHit  un monstruo mío me pegó
+   * @param {LocalStore} o.store
+   * @param {PeerLink | null} [o.peerLink]
+   * @param {string} o.myPubkey
+   * @param {(dmg:number, by:PlacedObject) => void} o.onPlayerHit  un monstruo mío me pegó
+   * @param {import('./types').Rand} [o.rand]
    */
-  constructor ({ store, peerLink = null, myPubkey, onPlayerHit, rand = Math.random } = {}) {
+  constructor ({ store, peerLink = null, myPubkey, onPlayerHit, rand = Math.random }) {
     if (!onPlayerHit) throw new Error('CombatHost: onPlayerHit is required')
     this.store = store
     this.rand = rand
@@ -31,11 +47,20 @@ export class CombatHost {
     this.myPubkey = myPubkey
     this.onPlayerHit = onPlayerHit
     this.nextSpawnAt = 0
+    /** @type {(() => boolean) | null} */
     this._unsub = null
+    /** @type {PeerLink | null} */
+    this.peerLink = null
+    this._lastForgetAt = 0
+    this._lastBeatAt = 0
+    this._beat = 0
     this.setPeerLink(peerLink)
   }
 
-  /** La red llega después (o nunca, sin bóveda): los monstruos existen igual. */
+  /**
+   * La red llega después (o nunca, sin bóveda): los monstruos existen igual.
+   * @param {PeerLink | null} peerLink
+   */
   setPeerLink (peerLink) {
     this._unsub?.()
     this.peerLink = peerLink
@@ -46,7 +71,10 @@ export class CombatHost {
 
   // ---------- presión de monstruos ----------
 
-  /** Mis monstruos (los que hosteo yo). */
+  /**
+   * Mis monstruos (los que hosteo yo).
+   * @returns {PlacedObject[]}
+   */
   myMonsters () {
     const out = []
     for (const o of this.store.inRect(-Infinity, -Infinity, Infinity, Infinity)) {
@@ -63,6 +91,13 @@ export class CombatHost {
    * @param {number} rep reputación del jugador ∈ [0,1]
    * @param {(x:number,y:number) => boolean} isPassable
    * @param {{pk:string,x:number,y:number,safe?:boolean}[]} others los demás jugadores conocidos
+   * @param {boolean} playerSafe caído o recién reaparecido
+   * @param {Screen | null} screen media pantalla en casillas
+   */
+  /**
+   * (Las líneas de arriba describen los campos del segundo argumento.)
+   * @param {number} now
+   * @param {{ player: Pos, rep: number | null, isPassable: IsPassable, others?: PeerTarget[], playerSafe?: boolean, screen?: Screen | null }} args
    */
   tick (now, { player, rep, isPassable, others = [], playerSafe = false, screen = null }) {
     // Los grupos que salieron de pantalla (y quedaron lejos) se van, y dejan sitio: el
@@ -92,6 +127,10 @@ export class CombatHost {
    * MEMORIA POR JUGADOR: los monstruos de OTROS fuera de mi zona de memoria (2× pantalla)
    * se olvidan aquí (solo en mi memoria, no para nadie más). No se pierde nada: su dueño
    * los reenvía cada HEARTBEAT_MS, así que al volver reaparecen donde estén.
+   *
+   * @param {number} now
+   * @param {Pos} player
+   * @param {Screen | null} screen
    */
   _forgetFarForeign (now, player, screen) {
     if (!screen || now - (this._lastForgetAt || 0) < 1000) return
@@ -106,6 +145,8 @@ export class CombatHost {
    * Cada HEARTBEAT_MS reenvío mis monstruos aunque no se hayan movido. Sin esto, un
    * monstruo quieto no le llegaba a quien se conectó después, ni a quien lo olvidó por
    * alejarse. Repartido: un tercio cada vez, para no mandar todo de golpe.
+   *
+   * @param {number} now
    */
   _heartbeat (now) {
     if (!this.peerLink || now - (this._lastBeatAt || 0) < HEARTBEAT_MS / 3) return
@@ -115,13 +156,20 @@ export class CombatHost {
     for (let i = this._beat; i < mine.length; i += 3) this.peerLink.broadcastObjectState(mine[i])
   }
 
-  /** Borra (para todos) los grupos que se fueron. Devuelve si borró alguno. */
+  /**
+   * Borra (para todos) los grupos que se fueron. Devuelve si borró alguno.
+   * @param {Pos[]} player todos los jugadores
+   * @param {Screen | null} screen
+   * @returns {boolean}
+   */
   _dropGonePacks (player, screen) {
+    /** @type {Map<string, PlacedObject[]>} */
     const packs = new Map()
     for (const m of this.myMonsters()) {
       const k = m.payload.pack || m.id
-      if (!packs.has(k)) packs.set(k, [])
-      packs.get(k).push(m)
+      let list = packs.get(k)
+      if (!list) { list = []; packs.set(k, list) }
+      list.push(m)
     }
     let dropped = false
     for (const members of packs.values()) {
@@ -135,7 +183,14 @@ export class CombatHost {
     return dropped
   }
 
-  /** Un grupo entero: comparten `pack` y una casa (`home`) de la que no se alejan tranquilos. */
+  /**
+   * Un grupo entero: comparten `pack` y una casa (`home`) de la que no se alejan tranquilos.
+   * @param {Pos} center
+   * @param {import('./world/threat.js').Threat} threat
+   * @param {IsPassable} isPassable
+   * @param {Pos[]} players
+   * @returns {PlacedObject[]}
+   */
   _spawnPack (center, threat, isPassable, players) {
     const pack = `${this.myPubkey.slice(-6)}:${Date.now().toString(36)}:${this.packSeq++}`
     const out = []
@@ -156,6 +211,15 @@ export class CombatHost {
   // Los objetos del almacén NO se mutan: está indexado por casilla, y cambiar `pos` en
   // el sitio dejaría el monstruo apuntado en la casilla vieja. Cada cambio es un objeto
   // nuevo con `ts` nuevo.
+  /**
+   * @param {PlacedObject} m
+   * @param {number} now
+   * @param {Pos} player
+   * @param {PlacedObject[]} structures
+   * @param {IsPassable} isPassable
+   * @param {boolean} playerSafe
+   * @param {PeerTarget[]} [others]
+   */
   _act (m, now, player, structures, isPassable, playerSafe, others = []) {
     if (chebyshev(m.pos, player) > DESPAWN_RADIUS) {
       this.store.remove(m.id)
@@ -169,7 +233,8 @@ export class CombatHost {
       if (mustReturn(m)) {
         // Fuera de su casa: vuelve andando, a paso normal.
         if (now - (m.payload.lastStepAt || 0) < STEP_MS) return
-        const next = stepToward(m.pos, m.payload.home, isPassable)
+        // mustReturn ya comprobó que tiene casa.
+        const next = stepToward(m.pos, /** @type {Pos} */ (m.payload.home), isPassable)
         const updated = { ...m, pos: next || m.pos, ts: Date.now(), payload: { ...payload, lastStepAt: now } }
         if (next) this._publish(updated)
         else this.store.upsert(updated, { creatorOnline: true })
@@ -187,10 +252,11 @@ export class CombatHost {
       if (now - (m.payload.lastAttackAt || 0) < ATTACK_MS) return
       // El reloj del golpe es solo del dueño: no hace falta publicarlo.
       this.store.upsert({ ...m, ts: Date.now(), payload: { ...m.payload, lastAttackAt: now } }, { creatorOnline: true })
-      if (target.kind === 'player') this.onPlayerHit(m.payload.dmg, m)
+      // `dmg` lo pone _spawnPack a todo monstruo.
+      if (target.kind === 'player') this.onPlayerHit(/** @type {number} */ (m.payload.dmg), m)
       // A otro jugador el golpe le llega por la red; él decide (caído, protegido…).
       else if (target.kind === 'peer') this.peerLink?.sendPlayerHit(target.pk, m.id)
-      else this._damageStructure(target.obj, m.payload.dmg)
+      else this._damageStructure(target.obj, /** @type {number} */ (m.payload.dmg))
       return
     }
     if (now - (m.payload.lastStepAt || 0) < STEP_MS) return
@@ -201,7 +267,11 @@ export class CombatHost {
     else this.store.upsert(updated, { creatorOnline: true })
   }
 
-  /** Lo que construí pierde vida; a cero, desaparece para todos. */
+  /**
+   * Lo que construí pierde vida; a cero, desaparece para todos.
+   * @param {PlacedObject} obj
+   * @param {number} dmg
+   */
   _damageStructure (obj, dmg) {
     const max = obj.payload.max_hp || STRUCTURE_HP
     const hp = (obj.payload.hp ?? max) - dmg
@@ -213,6 +283,7 @@ export class CombatHost {
     this._publish({ ...obj, ts: Date.now(), payload: { ...obj.payload, hp, max_hp: max } })
   }
 
+  /** @param {WorldObject} obj */
   _publish (obj) {
     this.store.upsert(obj, { creatorOnline: true })
     this.peerLink?.broadcastObjectState(obj)
@@ -220,11 +291,17 @@ export class CombatHost {
 
   // ---------- damage (al dueño le llega hit; ataques locales si soy yo dueño) ----------
 
-  /** `by`: pubkey de quien pegó (null = yo). Queda anotado como vínculo con él. */
+  /**
+   * `by`: pubkey de quien pegó (null = yo). Queda anotado como vínculo con él.
+   * @param {string} enemyId
+   * @param {number} amount
+   * @param {string | null} [by]
+   */
   applyHit (enemyId, amount, by = null) {
-    const obj = this.store.get(enemyId)
-    if (!obj || obj.creator !== this.myPubkey) return // solo el dueño aplica
-    if (obj.type !== 'enemy') return
+    const found = this.store.get(enemyId)
+    if (!found || found.creator !== this.myPubkey) return // solo el dueño aplica
+    if (found.type !== 'enemy' || !found.pos) return
+    const obj = /** @type {PlacedObject} */ (found)
     const hp = (obj.payload.hp || 0) - amount
     // Pegarle enfada a él y a los de su grupo que estén cerca, aunque su ira sea 0.
     this._provokePack(obj, by)
@@ -233,12 +310,17 @@ export class CombatHost {
       this.store.remove(obj.id)
       this.peerLink?.broadcastObjectGone(obj.id)
     } else {
-      const cur = this.store.get(obj.id)
+      // _provokePack acaba de volver a publicarlo: el vigente es el del almacén.
+      const cur = /** @type {WorldObject} */ (this.store.get(obj.id))
       this._publish({ ...cur, ts: Date.now(), payload: { ...cur.payload, hp, provoked: true, ...(by ? { provokedBy: by } : {}) } })
     }
   }
 
-  /** Provoca al golpeado y a su grupo cercano; `provokedBy` dice quién (vínculo con ese jugador). */
+  /**
+   * Provoca al golpeado y a su grupo cercano; `provokedBy` dice quién (vínculo con ese jugador).
+   * @param {PlacedObject} hit
+   * @param {string | null} by
+   */
   _provokePack (hit, by) {
     for (const m of this.myMonsters()) {
       if (m.payload.provoked && (!by || m.payload.provokedBy === by)) continue
@@ -247,6 +329,7 @@ export class CombatHost {
     }
   }
 
+  /** @param {PlacedObject} obj */
   _announceDeath (obj) {
     const loot = lootTableFor(obj)
     this.peerLink?.broadcastEnemyDied(obj.id, loot, obj.pos)
@@ -254,6 +337,10 @@ export class CombatHost {
     this._instantiateLoot(loot, obj.pos)
   }
 
+  /**
+   * @param {string[]} templates
+   * @param {Pos} pos
+   */
   _instantiateLoot (templates, pos) {
     for (const kind of templates) {
       const item = makeObject(kind, { creator: this.myPubkey, ts: Date.now(), pos: { ...pos } })
@@ -263,6 +350,7 @@ export class CombatHost {
 
   // ---------- net ----------
 
+  /** @param {NetEvent} e */
   _onNet (e) {
     if (e.kind === 'hit') this.applyHit(e.enemyId, e.amount, e.by || null)
     else if (e.kind === 'enemy_died') {
@@ -272,6 +360,10 @@ export class CombatHost {
   }
 }
 
+/**
+ * @param {WorldObject} enemy
+ * @returns {string[]}
+ */
 function lootTableFor (enemy) {
   // Tabla muy simple por ahora. En el futuro la decide su DSL/payload.
   // El jefe y el líder sueltan más.
